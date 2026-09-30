@@ -1,0 +1,48 @@
+name: Python
+
+# Builds a wheel for every platform and Python version and runs the tests against each. The wheels and the
+# source distribution are left as artifacts. Nothing is published from here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/cibuildwheel@v3.2.0
+        env:
+          CIBW_ARCHS_MACOS: x86_64 arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: pipx run build --sdist
+      - name: Install and test the source distribution
+        run: |
+          pip install "$(ls dist/*.tar.gz)[test]"
+          cd "$RUNNER_TEMP" && pytest "$GITHUB_WORKSPACE/bindings/python/tests"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz

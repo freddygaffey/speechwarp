@@ -1,0 +1,39 @@
+# The Python package. It is built from the top of the repository, not from bindings/python, because it
+# compiles the C sources in src/ and third_party/ and a Python project may not reach outside its own folder.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "speechwarp"
+dynamic = ["version"]
+description = "Nonlinear speed-up for speech: listen faster and still follow it"
+readme = "bindings/python/README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "third_party/*/LICENSE", "third_party/kissfft/COPYING", "third_party/kissfft/LICENSES/*"]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.21"]
+keywords = ["speech", "audio", "time-stretch", "speed", "sonic", "speedy", "audiobook"]
+classifiers = [
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
+[project.urls]
+Homepage = "https://github.com/freddygaffey/speechwarp"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["speechwarp"]
+package-dir = { speechwarp = "bindings/python/speechwarp" }
+
+[tool.pytest.ini_options]
+testpaths = ["bindings/python/tests"]
+
+[tool.cibuildwheel]
+skip = "*-musllinux_i686 *-manylinux_i686 *-win32"
+test-extras = ["test"]
+test-command = "pytest {project}/bindings/python/tests"
