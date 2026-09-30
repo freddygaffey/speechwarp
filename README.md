@@ -15,8 +15,8 @@ library it drives, behind one small C API, with bindings for other languages to 
 ## Status
 
 Early. The C library, its tests and the command-line tool work on macOS; Linux and Windows are built by CI
-but have had no other use yet. Bindings for C#/.NET, Python, JavaScript (WebAssembly), Android and Apple
-platforms are planned and not started.
+but have had no other use yet. There is a [.NET binding](bindings/dotnet/) for Windows, Linux, macOS and
+Android. Bindings for Python, JavaScript (WebAssembly), Kotlin and Swift are planned and not started.
 
 ## Building
 

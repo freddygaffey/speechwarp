@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Speechwarp</PackageId>
+    <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h; the tests check it. -->
+    <Version>0.1.0</Version>
+    <Authors>The speechwarp contributors</Authors>
+    <Description>Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the Sonic library. Not an official Google product.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/freddygaffey/speechwarp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/freddygaffey/speechwarp</RepositoryUrl>
+    <PackageTags>speech;audio;time-stretch;speed;sonic;speedy;audiobook</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The native libraries, one folder per runtime, put here by build-native.sh or by CI. -->
+    <None Include="runtimes\**" Pack="true" PackagePath="runtimes" />
+    <None Include="..\README.md" Pack="true" PackagePath="" />
+    <!-- The licences and notices of what the native library contains must travel with it. -->
+    <None Include="..\..\..\LICENSE;..\..\..\NOTICE" Pack="true" PackagePath="licenses" />
+    <None Include="..\..\..\third_party\sonic\LICENSE" Pack="true" PackagePath="licenses\sonic" />
+    <None Include="..\..\..\third_party\speedy\LICENSE" Pack="true" PackagePath="licenses\speedy" />
+    <None Include="..\..\..\third_party\kissfft\COPYING;..\..\..\third_party\kissfft\LICENSES\BSD-3-Clause" Pack="true" PackagePath="licenses\kissfft" />
+  </ItemGroup>
+
+</Project>

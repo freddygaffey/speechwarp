@@ -1,0 +1,4 @@
+bin/
+obj/
+Speechwarp/runtimes/
+*.nupkg

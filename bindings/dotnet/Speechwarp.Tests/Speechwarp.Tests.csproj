@@ -1,0 +1,18 @@
+<Project Sdk="MSTest.Sdk/4.4.0">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Speechwarp\Speechwarp.csproj" />
+    <!-- A project reference does not carry the package's runtimes folder, so put this machine's native
+         library beside the tests. Build it first with ../build-native.sh. -->
+    <None Include="..\Speechwarp\runtimes\$(NETCoreSdkRuntimeIdentifier)\native\*"
+          CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
