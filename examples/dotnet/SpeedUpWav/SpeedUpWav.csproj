@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- In your own project this is <PackageReference Include="Speechwarp" Version="..." /> and nothing else.
+       Here the example uses the binding from this repository, so it also has to copy this machine's native
+       library, which bindings/dotnet/build-native.sh builds. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\bindings\dotnet\Speechwarp\Speechwarp.csproj" />
+    <None Include="..\..\..\bindings\dotnet\Speechwarp\runtimes\$(NETCoreSdkRuntimeIdentifier)\native\*"
+          CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

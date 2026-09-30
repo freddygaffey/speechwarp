@@ -25,8 +25,17 @@ but have had no other use yet. Bindings:
 | Kotlin / Java | [`bindings/android/`](bindings/android/) | Android 5.0 and later |
 | JavaScript / TypeScript | [`bindings/js/`](bindings/js/) | browsers, Node, AudioWorklet (WebAssembly) |
 
-Nothing is published to a package
-registry yet.
+Nothing is published to a package registry yet.
+
+## Documentation
+
+Start with the [guide](docs/guide.md): frames, the write and read cycle, what the speed means. Then:
+
+- [Building a player](docs/player.md) - playing in real time, seeking, the progress bar, threads
+- [API reference](docs/api.md) - every function, in every language
+- [How it works](docs/how-it-works.md) - what the algorithm does, and what this library adds to upstream
+- [Examples](examples/) - code that runs, in each language
+- [Contributing](CONTRIBUTING.md) - building and testing everything
 
 ## Building
 
@@ -72,7 +81,8 @@ speechwarp_flush(s);                                  /* then read until empty *
 speechwarp_destroy(s);
 ```
 
-[`include/speechwarp.h`](include/speechwarp.h) documents every function. Things worth knowing first:
+[`include/speechwarp.h`](include/speechwarp.h) documents every function, and
+[`examples/c/player.c`](examples/c/player.c) is the loop of a real-time player. Things worth knowing first:
 
 - **The speed is the speed you get.** Speedy's own speeds average well under the one requested, because it
   slows down for consonants more than it hurries vowels. speechwarp steers the average back to the requested
@@ -87,23 +97,6 @@ speechwarp_destroy(s);
 
 On an Apple M-series laptop, one core speeds up 44.1 kHz audio about 250 times faster than it plays with
 nonlinear speed-up, and about 2000 times faster without.
-
-## How it differs from upstream
-
-The files in `third_party/` are unmodified. What differs is in `src/`:
-
-- `src/speechwarp.c` replaces upstream's shim between Speedy and Sonic (`soniclib.c`). It gives Speedy and
-  Sonic the same data, and `tests/test_parity.c` checks the output against upstream's shim sample for sample.
-  It adds the position tracking and the speed correction described above, keeps the last few milliseconds
-  that upstream's flush drops, prints nothing, and reports running out of memory instead of crashing.
-- `src/fft.c` stands in front of KISS FFT. Speedy analyses 30 ms windows, which at 44.1 kHz is 1322 points;
-  1322 is twice a prime, and KISS FFT is slow at such sizes. The analysis ran more than 20 times slower at 44.1 kHz
-  than at 48 kHz until this was added.
-
-## Listening test
-
-[`examples/blind-ab-test/`](examples/blind-ab-test/) is a small web app for comparing even and nonlinear
-speed-up blind, on your own recordings.
 
 ## Licence
 

@@ -17,6 +17,7 @@ option(SPEECHWARP_BUILD_SHARED "Build the shared library" ON)
 option(SPEECHWARP_BUILD_STATIC "Build the static library" ON)
 option(SPEECHWARP_FRAMEWORK "Build the shared library as an Apple framework" OFF)
 option(SPEECHWARP_BUILD_TOOLS "Build the speechwarp command-line tool" ${speechwarp_is_top_level})
+option(SPEECHWARP_BUILD_EXAMPLES "Build the C example" ${speechwarp_is_top_level})
 option(SPEECHWARP_BUILD_TESTS "Build the tests" ${speechwarp_is_top_level})
 option(SPEECHWARP_INSTALL "Add install rules" ${speechwarp_is_top_level})
 
@@ -123,6 +124,10 @@ if(SPEECHWARP_BUILD_TESTS)
   endif()
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if(SPEECHWARP_BUILD_EXAMPLES)
+  add_subdirectory(examples/c)
 endif()
 
 if(SPEECHWARP_INSTALL)
