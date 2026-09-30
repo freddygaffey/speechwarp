@@ -1,0 +1,5 @@
+# Your own audio, rendered clips and votes stay on your machine.
+src/
+cache/
+votes.jsonl
+speedy_wave
