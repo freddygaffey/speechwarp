@@ -22,8 +22,9 @@ but have had no other use yet. Bindings:
 | C# / .NET | [`bindings/dotnet/`](bindings/dotnet/) | Windows, Linux, macOS, Android, iOS |
 | Python | [`bindings/python/`](bindings/python/) | anywhere with a C compiler; NumPy arrays in and out |
 | Swift | [`bindings/swift/`](bindings/swift/) | macOS, iOS, tvOS, watchOS |
+| Kotlin / Java | [`bindings/android/`](bindings/android/) | Android 5.0 and later |
 
-Kotlin (Android) and JavaScript (WebAssembly) are planned and not started. Nothing is published to a package
+JavaScript (WebAssembly) is planned and not started. Nothing is published to a package
 registry yet.
 
 ## Building

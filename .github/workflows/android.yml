@@ -1,0 +1,32 @@
+name: Android
+
+# Runs the Kotlin tests on the JVM and builds the AAR, which is left as an artifact. Nothing is published.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Test
+        run: ./gradlew :speechwarp:testReleaseUnitTest
+      - name: Build the AAR
+        run: ./gradlew :speechwarp:assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aar
+          path: bindings/android/speechwarp/build/outputs/aar/*.aar
