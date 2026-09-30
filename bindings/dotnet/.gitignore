@@ -1,4 +1,5 @@
 bin/
 obj/
 Speechwarp/runtimes/
+Speechwarp/native/
 *.nupkg

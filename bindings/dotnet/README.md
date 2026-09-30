@@ -26,13 +26,15 @@ stream.Flush();                       // at the end of the input; then read unti
 
 ## Platforms
 
-The package carries the native library for Windows (x64, arm64), Linux (x64, arm64), macOS (x64, arm64) and
-Android (arm64, x64, arm). iOS is not in the package yet.
+The package carries the native library for Windows (x64, arm64), Linux (x64, arm64), macOS (x64, arm64),
+Android (arm64, x64, arm) and iOS 15 or later (devices, and simulators on both kinds of Mac). On iOS it is a
+framework that the package adds to the app by itself.
 
 ## Building it here
 
 ```sh
 ./build-native.sh                       # the native library for this machine
+./build-ios.sh                          # the iOS framework, on a Mac, if the package is to include it
 dotnet test --project Speechwarp.Tests
 dotnet pack Speechwarp -c Release       # a package with whichever native libraries have been built
 ```

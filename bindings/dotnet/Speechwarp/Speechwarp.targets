@@ -1,0 +1,7 @@
+<Project>
+  <!-- On iOS a native library has to be a framework embedded in the app. The other platforms find theirs
+       under runtimes/ with no help. -->
+  <ItemGroup Condition="'$(TargetPlatformIdentifier)' == 'ios'">
+    <NativeReference Include="$(MSBuildThisFileDirectory)..\native\ios\speechwarp.xcframework" Kind="Framework" />
+  </ItemGroup>
+</Project>

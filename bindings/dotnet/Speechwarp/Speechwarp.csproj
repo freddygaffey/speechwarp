@@ -24,6 +24,10 @@
   <ItemGroup>
     <!-- The native libraries, one folder per runtime, put here by build-native.sh or by CI. -->
     <None Include="runtimes\**" Pack="true" PackagePath="runtimes" />
+    <!-- iOS: a framework for devices and simulators, from build-ios.sh, and the targets file that makes an
+         app embed it. -->
+    <None Include="native\**" Pack="true" PackagePath="native" />
+    <None Include="Speechwarp.targets" Pack="true" PackagePath="buildTransitive" />
     <None Include="..\README.md" Pack="true" PackagePath="" />
     <!-- The licences and notices of what the native library contains must travel with it. -->
     <None Include="..\..\..\LICENSE;..\..\..\NOTICE" Pack="true" PackagePath="licenses" />

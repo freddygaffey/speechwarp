@@ -15,6 +15,7 @@ endif()
 
 option(SPEECHWARP_BUILD_SHARED "Build the shared library" ON)
 option(SPEECHWARP_BUILD_STATIC "Build the static library" ON)
+option(SPEECHWARP_FRAMEWORK "Build the shared library as an Apple framework" OFF)
 option(SPEECHWARP_BUILD_TOOLS "Build the speechwarp command-line tool" ${speechwarp_is_top_level})
 option(SPEECHWARP_BUILD_TESTS "Build the tests" ${speechwarp_is_top_level})
 option(SPEECHWARP_INSTALL "Add install rules" ${speechwarp_is_top_level})
@@ -72,6 +73,17 @@ if(SPEECHWARP_BUILD_SHARED)
     EXPORT_NAME shared
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR})
+  if(SPEECHWARP_FRAMEWORK)
+    # What an iOS app embeds. The App Store wants the identifier, the versions and the minimum system.
+    set_target_properties(speechwarp_shared PROPERTIES
+      FRAMEWORK TRUE
+      PUBLIC_HEADER include/speechwarp.h
+      MACOSX_FRAMEWORK_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/cmake/framework-Info.plist.in
+      MACOSX_FRAMEWORK_IDENTIFIER io.github.freddygaffey.speechwarp
+      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER io.github.freddygaffey.speechwarp
+      MACOSX_FRAMEWORK_SHORT_VERSION_STRING ${PROJECT_VERSION}
+      MACOSX_FRAMEWORK_BUNDLE_VERSION ${PROJECT_VERSION})
+  endif()
   add_library(speechwarp::shared ALIAS speechwarp_shared)
   list(APPEND speechwarp_targets speechwarp_shared)
 endif()
@@ -119,11 +131,15 @@ if(SPEECHWARP_INSTALL)
   install(TARGETS ${speechwarp_targets} EXPORT speechwarp-targets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   if(speechwarp_programs)
     install(TARGETS ${speechwarp_programs} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
-  install(FILES include/speechwarp.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  if(NOT SPEECHWARP_FRAMEWORK)
+    install(FILES include/speechwarp.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  endif()
   install(EXPORT speechwarp-targets NAMESPACE speechwarp::
     FILE speechwarp-config.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/speechwarp)

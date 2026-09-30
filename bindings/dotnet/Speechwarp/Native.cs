@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Speechwarp;
@@ -7,6 +8,24 @@ namespace Speechwarp;
 internal static unsafe partial class Native
 {
     private const string Library = "speechwarp";
+
+    // On iOS the library is a framework inside the app, which the runtime does not find by its bare name.
+    // This runs when the assembly loads and not in a static constructor, because Mono looks a function up
+    // when it compiles the caller, which is before the constructor of this class would run. (A simulator test
+    // app threw DllNotFoundException both without this and with it in a static constructor.)
+#pragma warning disable CA2255 // Module initializers are discouraged in libraries; this is what they are for.
+    [ModuleInitializer]
+    internal static void FindFrameworkOnIos()
+    {
+        if (OperatingSystem.IsIOS())
+        {
+            NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) =>
+                name == Library && NativeLibrary.TryLoad("@rpath/speechwarp.framework/speechwarp", out nint handle)
+                    ? handle
+                    : 0);
+        }
+    }
+#pragma warning restore CA2255
 
     [LibraryImport(Library)]
     internal static partial byte* speechwarp_version();

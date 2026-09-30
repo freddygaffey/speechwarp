@@ -48,6 +48,19 @@ jobs:
           path: bindings/dotnet/Speechwarp/runtimes
           if-no-files-found: error
 
+  ios:
+    name: native ios
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: bindings/dotnet/build-ios.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-framework
+          path: bindings/dotnet/Speechwarp/native
+          if-no-files-found: error
+
   test:
     name: test ${{ matrix.os }}
     needs: native
@@ -71,7 +84,7 @@ jobs:
         run: dotnet test --project Speechwarp.Tests
 
   pack:
-    needs: test
+    needs: [test, ios]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +96,10 @@ jobs:
           pattern: native-*
           merge-multiple: true
           path: bindings/dotnet/Speechwarp/runtimes
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-framework
+          path: bindings/dotnet/Speechwarp/native
       - name: Pack
         run: dotnet pack bindings/dotnet/Speechwarp -c Release -o package
       - uses: actions/upload-artifact@v4
