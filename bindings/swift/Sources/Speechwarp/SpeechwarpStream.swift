@@ -1,0 +1,135 @@
+import CSpeechwarp
+
+/// What can go wrong.
+public enum SpeechwarpError: Error, Equatable {
+    /// The sample rate is not 4000 to 384000, or the channel count is not 1 to 32.
+    case unsupportedFormat
+    /// The number of samples is not a whole number of frames.
+    case partialFrame
+    case outOfMemory
+}
+
+/// Speeds up speech. Write audio in, read the faster audio out.
+///
+/// Samples are interleaved: a frame is one sample per channel, and every count here is in frames unless it
+/// says otherwise. Floats are in the range -1 to 1.
+///
+/// A stream is not thread safe. Use it from one thread, or lock around it.
+public final class SpeechwarpStream {
+    /// The slowest and fastest speeds that can be set.
+    public static let speedRange: ClosedRange<Float> = 0.05...20
+
+    /// The version of the C library, such as "0.1.0".
+    public static var libraryVersion: String { String(cString: speechwarp_version()) }
+
+    public let sampleRate: Int
+    /// Samples in a frame.
+    public let channels: Int
+
+    private let stream: OpaquePointer
+
+    /// Creates a stream at speed 1 with nonlinear speed-up on.
+    public init(sampleRate: Int, channels: Int = 1) throws {
+        guard (4000...384000).contains(sampleRate), (1...32).contains(channels) else {
+            throw SpeechwarpError.unsupportedFormat
+        }
+        guard let stream = speechwarp_create(Int32(sampleRate), Int32(channels)) else {
+            throw SpeechwarpError.outOfMemory
+        }
+        self.stream = stream
+        self.sampleRate = sampleRate
+        self.channels = channels
+    }
+
+    deinit {
+        speechwarp_destroy(stream)
+    }
+
+    /// Overall speed: 2 plays twice as fast. Clamped to `speedRange`; zero, negative and NaN are ignored.
+    ///
+    /// Takes effect on audio not yet processed, which includes the last 0.15 s or so written. With nonlinear
+    /// speed-up the speed varies from moment to moment and its average is steered to this value; expect the
+    /// result within a few percent.
+    public var speed: Float {
+        get { speechwarp_get_speed(stream) }
+        set { speechwarp_set_speed(stream, newValue) }
+    }
+
+    /// How unevenly time is compressed, 0 to 1. 1 (the default) slows consonants and hurries vowels and
+    /// pauses, as a fast talker does. 0 compresses everything evenly. May be changed during playback.
+    public var nonlinear: Float {
+        get { speechwarp_get_nonlinear(stream) }
+        set { speechwarp_set_nonlinear(stream, newValue) }
+    }
+
+    /// Frames of output ready to read.
+    public var framesAvailable: Int { Int(speechwarp_available(stream)) }
+
+    /// The input frame, counted from creation or the last `reset()`, that the next output frame to be read was
+    /// made from. This is how a player maps what is being heard back to a place in the source.
+    ///
+    /// It never goes backwards, it is approximate (within about 0.05 s of input), and once everything after a
+    /// `flush()` has been read it equals the number of frames written.
+    public var position: Int64 { speechwarp_position(stream) }
+
+    /// Adds input. The output does not depend on how the input is divided between calls.
+    public func write(_ samples: UnsafeBufferPointer<Float>) throws {
+        let frames = try wholeFrames(samples.count)
+        guard speechwarp_write(stream, samples.baseAddress, frames) != 0 else { throw SpeechwarpError.outOfMemory }
+    }
+
+    public func write(_ samples: UnsafeBufferPointer<Int16>) throws {
+        let frames = try wholeFrames(samples.count)
+        guard speechwarp_write_i16(stream, samples.baseAddress, frames) != 0 else { throw SpeechwarpError.outOfMemory }
+    }
+
+    public func write(_ samples: [Float]) throws {
+        try samples.withUnsafeBufferPointer { try write($0) }
+    }
+
+    public func write(_ samples: [Int16]) throws {
+        try samples.withUnsafeBufferPointer { try write($0) }
+    }
+
+    /// Takes processed output, as many whole frames as fit.
+    ///
+    /// - Returns: The number of frames written, which is the number of samples divided by `channels`. It may
+    ///   be 0: output lags input by a short look-ahead.
+    @discardableResult
+    public func read(into samples: UnsafeMutableBufferPointer<Float>) -> Int {
+        Int(speechwarp_read(stream, samples.baseAddress, Int32(clamping: samples.count / channels)))
+    }
+
+    @discardableResult
+    public func read(into samples: UnsafeMutableBufferPointer<Int16>) -> Int {
+        Int(speechwarp_read_i16(stream, samples.baseAddress, Int32(clamping: samples.count / channels)))
+    }
+
+    /// Takes all the output that is ready, or at most `maxFrames` frames of it.
+    public func read(maxFrames: Int = .max) -> [Float] {
+        let frames = min(maxFrames, framesAvailable)
+        guard frames > 0 else { return [] }
+        return [Float](unsafeUninitializedCapacity: frames * channels) { buffer, count in
+            count = read(into: buffer) * channels
+        }
+    }
+
+    /// Processes everything written so far, at the end of the input. Read until empty afterwards. Writing more
+    /// starts a new stretch of audio, and `position` carries on counting.
+    public func flush() throws {
+        guard speechwarp_flush(stream) != 0 else { throw SpeechwarpError.outOfMemory }
+    }
+
+    /// Discards all buffered input and output, keeping the speed and nonlinear settings, and starts `position`
+    /// again from zero. Use after seeking.
+    public func reset() {
+        speechwarp_reset(stream)
+    }
+
+    private func wholeFrames(_ samples: Int) throws -> Int32 {
+        guard samples % channels == 0, let frames = Int32(exactly: samples / channels) else {
+            throw SpeechwarpError.partialFrame
+        }
+        return frames
+    }
+}

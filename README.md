@@ -15,8 +15,16 @@ library it drives, behind one small C API, with bindings for other languages to 
 ## Status
 
 Early. The C library, its tests and the command-line tool work on macOS; Linux and Windows are built by CI
-but have had no other use yet. There is a [.NET binding](bindings/dotnet/) for Windows, Linux, macOS and
-Android. Bindings for Python, JavaScript (WebAssembly), Kotlin and Swift are planned and not started.
+but have had no other use yet. Bindings:
+
+| Language | Where | Platforms |
+|----------|-------|-----------|
+| C# / .NET | [`bindings/dotnet/`](bindings/dotnet/) | Windows, Linux, macOS, Android, iOS |
+| Python | [`bindings/python/`](bindings/python/) | anywhere with a C compiler; NumPy arrays in and out |
+| Swift | [`bindings/swift/`](bindings/swift/) | macOS, iOS, tvOS, watchOS |
+
+Kotlin (Android) and JavaScript (WebAssembly) are planned and not started. Nothing is published to a package
+registry yet.
 
 ## Building
 
