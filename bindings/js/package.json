@@ -1,0 +1,31 @@
+{
+  "name": "speechwarp",
+  "version": "0.1.0",
+  "description": "Nonlinear speed-up for speech: listen faster and still follow it",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freddygaffey/speechwarp.git",
+    "directory": "bindings/js"
+  },
+  "keywords": ["speech", "audio", "time-stretch", "speed", "sonic", "speedy", "audiobook", "wasm", "audioworklet"],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "licenses"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "sh build.sh",
+    "test": "node --test",
+    "prepack": "sh build.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

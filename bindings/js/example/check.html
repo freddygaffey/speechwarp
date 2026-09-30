@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>speechwarp worklet check</title>
+<!-- Renders the worklet offline with a made-up signal and writes what happened into the page. It makes no
+     sound and needs no click, so it can be run by a script. Serve bindings/js over HTTP and open this. -->
+<pre id="result">running</pre>
+<script type="module">
+const rate = 44100, seconds = 12, speed = 4;
+try {
+  const context = new OfflineAudioContext(2, rate * 4, rate);
+  await context.audioWorklet.addModule("../dist/speechwarp-processor.js");
+  const signal = new Float32Array(rate * seconds);
+  for (let i = 0, phase = 0; i < signal.length; i++) {
+    const t = i / rate;
+    phase += (2 * Math.PI * (120 + 60 * Math.sin(t * 3))) / rate;
+    signal[i] = 0.4 * (t % 0.4 < 0.3 ? Math.sin((Math.PI * (t % 0.4)) / 0.3) : 0) * Math.sin(phase);
+  }
+  const node = new AudioWorkletNode(context, "speechwarp-processor", {
+    outputChannelCount: [2],
+    processorOptions: { channels: [signal], speed, play: true },
+  });
+  node.connect(context.destination);
+  const positions = [];
+  let ended = false;
+  node.port.onmessage = ({ data }) => { positions.push(data.frame); ended ||= data.ended; };
+
+  const rendered = await context.startRendering();
+  const left = rendered.getChannelData(0), right = rendered.getChannelData(1);
+  let peak = 0, lastLoud = 0, same = true;
+  for (let i = 0; i < left.length; i++) {
+    peak = Math.max(peak, Math.abs(left[i]));
+    if (Math.abs(left[i]) > 0.01) lastLoud = i;
+    same &&= left[i] === right[i];
+  }
+  await new Promise((resolve) => setTimeout(resolve, 200)); // let the last messages arrive
+  document.getElementById("result").textContent = JSON.stringify({
+    ok: peak > 0.1 && same && ended && Math.abs(lastLoud / rate - seconds / speed) < 0.4,
+    peak, channelsMatch: same, ended,
+    audioEndsAt: lastLoud / rate, expectedEnd: seconds / speed,
+    lastPosition: positions.at(-1), sourceFrames: signal.length,
+    positionsIncrease: positions.every((p, i) => i === 0 || p >= positions[i - 1]),
+  }, null, 1);
+} catch (error) {
+  document.getElementById("result").textContent = "FAILED " + (error.stack || error);
+}
+</script>

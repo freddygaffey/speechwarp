@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>speechwarp in an AudioWorklet</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+  label { display: block; margin-top: 1rem; }
+  input[type=range] { width: 100%; }
+  button { font: inherit; padding: 0.4rem 1rem; margin-top: 1rem; }
+</style>
+
+<h1>speechwarp in an AudioWorklet</h1>
+<p>Choose a recording of speech. It is decoded in this page and nothing is uploaded. Serve this folder's
+parent over HTTP after <code>npm run build</code>; a worklet cannot be loaded from a <code>file:</code> page.</p>
+
+<input id="file" type="file" accept="audio/*">
+<label>Speed <output id="speedValue">3.0</output>x
+  <input id="speed" type="range" min="0.5" max="10" step="0.1" value="3"></label>
+<label><input id="nonlinear" type="checkbox" checked> Nonlinear (uncheck for even speed-up)</label>
+<label>Position <output id="time">0:00</output>
+  <input id="position" type="range" min="0" max="1" step="any" value="0" disabled></label>
+<button id="play" disabled>Play</button>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+let context, node, duration = 0, playing = false, dragging = false;
+
+function clock(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+}
+
+$("file").onchange = async () => {
+  const file = $("file").files[0];
+  if (!file) return;
+  if (!context) {
+    context = new AudioContext();
+    await context.audioWorklet.addModule("../dist/speechwarp-processor.js");
+    node = new AudioWorkletNode(context, "speechwarp-processor", { outputChannelCount: [2] });
+    node.connect(context.destination);
+    node.port.onmessage = ({ data }) => {
+      // The worklet reports which frame of the recording is being heard, whatever the speed has been.
+      if (!dragging) $("position").value = data.frame / context.sampleRate;
+      $("time").value = clock(data.frame / context.sampleRate);
+      if (data.ended) setPlaying(false);
+    };
+    node.port.postMessage({ type: "speed", value: Number($("speed").value) });
+  }
+  // decodeAudioData resamples to the context's rate, which is the rate the stream was created with.
+  const audio = await context.decodeAudioData(await file.arrayBuffer());
+  duration = audio.duration;
+  const channels = Array.from({ length: audio.numberOfChannels }, (_, c) => audio.getChannelData(c));
+  node.port.postMessage({ type: "load", channels });
+  $("position").max = duration;
+  $("position").disabled = $("play").disabled = false;
+  setPlaying(false);
+};
+
+function setPlaying(value) {
+  playing = value;
+  $("play").textContent = playing ? "Pause" : "Play";
+  node.port.postMessage({ type: playing ? "play" : "pause" });
+}
+
+$("play").onclick = async () => {
+  await context.resume();
+  setPlaying(!playing);
+};
+$("speed").oninput = () => {
+  $("speedValue").value = Number($("speed").value).toFixed(1);
+  node?.port.postMessage({ type: "speed", value: Number($("speed").value) });
+};
+$("nonlinear").onchange = () => node?.port.postMessage({ type: "nonlinear", value: $("nonlinear").checked ? 1 : 0 });
+$("position").onpointerdown = () => (dragging = true);
+$("position").onchange = () => {
+  dragging = false;
+  node.port.postMessage({ type: "seek", frame: Number($("position").value) * context.sampleRate });
+};
+</script>
+</html>
