@@ -9,42 +9,32 @@ decided, vote, and it moves to a different recording and reshuffles. Nothing on 
 name or which method is which.
 
 Both versions are rendered to the same length, so the speed slider is the true overall speed and duration
-gives nothing away. Speedy slows down for consonants, so at a given setting it runs long; the app asks it for
-more speed until the result is the length wanted, then renders the even version to match.
+gives nothing away. Neither method lands exactly on the speed asked for, so the app adjusts its request until
+the nonlinear version is the length wanted, then renders the even version to match.
 
 ## No audio is included
 
-Bring your own. Put at least two **mono, 16-bit PCM WAV** files of speech in `src/`. Several minutes each works
-best: at 8x, ten minutes of source is 75 seconds of listening. Use plain WAV files with a 44-byte header;
-files written as `WAVE_FORMAT_EXTENSIBLE` (for example by macOS `afconvert`) are rejected by the renderer.
+Bring your own. Put at least two **16-bit PCM WAV** files of speech in `src/`. Several minutes each works
+best: at 8x, ten minutes of source is 75 seconds of listening.
 
 `src/`, the rendered `cache/` and your `votes.jsonl` are git-ignored.
 
 ## Running it
 
-The app shells out to Google's `speedy_wave` command-line tool. Until this repository builds its own, build
-that one from the vendored sources plus `wave.c` and `speedy_wave.cc` from upstream:
+The app shells out to the `speechwarp` command-line tool. Build it from the top of this repository:
 
 ```sh
-git clone https://github.com/waywardgeek/sonic && git clone https://github.com/google/speedy
-T=../../third_party
-cc  -O2 -c -DSONIC_INTERNAL -I$T/sonic $T/sonic/sonic.c -o sonic_internal.o
-cc  -O2 -c -I$T/sonic sonic/wave.c -o wave.o
-cc  -O2 -c -DKISS_FFT -I$T/sonic -I$T/kissfft $T/speedy/speedy.c -o speedy.o
-cc  -O2 -c -DKISS_FFT -I$T/sonic -I$T/kissfft $T/speedy/soniclib.c -o soniclib.o
-cc  -O2 -c -I$T/kissfft $T/kissfft/kiss_fft.c -o kiss_fft.o
-c++ -O2 -std=c++17 -DKISS_FFT -Isonic -I$T/sonic -I$T/kissfft -I$T/speedy speedy/speedy_wave.cc \
-    sonic_internal.o wave.o speedy.o soniclib.o kiss_fft.o -o speedy_wave
+cmake -B build && cmake --build build
 ```
 
-Then:
+Then, in this folder:
 
 ```sh
 pip install flask
 python app.py          # http://127.0.0.1:5005/
 ```
 
-Set `SPEEDY_WAVE` to use a `speedy_wave` binary somewhere else.
+Set `SPEECHWARP` to use a `speechwarp` binary somewhere else.
 
 ## Using it
 

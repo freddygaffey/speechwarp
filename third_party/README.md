@@ -12,5 +12,10 @@ Only the files needed to build are copied: no tests, tools or build scripts. To 
 from a newer commit and change the hash here. Keep local changes out of these folders; put fixes upstream or
 in `src/`.
 
-Build notes: compile `sonic/sonic.c` with `-DSONIC_INTERNAL` (Speedy's `soniclib.c` re-exports Sonic's public
-names on top of it) and `speedy/*.c` with `-DKISS_FFT` (the alternative is FFTW).
+Build notes: nothing here is compiled directly. Each `src/third_party_*.c` includes one of these files after
+`src/rename.h`, which prefixes its external symbols so the library can be linked next to another copy of Sonic
+or KISS FFT. `sonic/sonic.c` is built with `SONIC_INTERNAL`, as Speedy expects, and `speedy/speedy.c` with
+`KISS_FFT` (the alternative is FFTW).
+
+`speedy/soniclib.c` and `speedy/sonic2.h` are upstream's shim between Speedy and Sonic. The library uses
+`src/speechwarp.c` in its place; the shim is kept as the reference that `tests/test_parity.c` compares against.

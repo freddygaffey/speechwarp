@@ -21,8 +21,8 @@ SRC = sorted((HERE / "src").glob("*.wav"))  # your own speech recordings; none a
 CACHE = HERE / "cache"
 CACHE.mkdir(exist_ok=True)
 VOTES = HERE / "votes.jsonl"
-# Google's speedy_wave command-line tool does the rendering for now; see README.md for how to build it.
-SPEEDY = Path(os.environ.get("SPEEDY_WAVE", HERE / "speedy_wave"))
+# The speechwarp command-line tool does the rendering; see README.md for how to build it.
+SPEECHWARP = Path(os.environ.get("SPEECHWARP", HERE / "../../build/speechwarp"))
 
 app = Flask(__name__)
 clips = {}     # clip token -> wav path
@@ -34,9 +34,10 @@ def duration(path):
         return w.getnframes() / w.getframerate()
 
 
-def run_speedy(src, out, speed, nonlinear):
-    args = [str(SPEEDY), f"--speed={speed:.4f}", "--input", str(src), "--output", str(out)]
-    args.insert(2, "--nonlinear=1.0" if nonlinear else "--linear")
+def run_speechwarp(src, out, speed, nonlinear):
+    args = [str(SPEECHWARP), "--speed", f"{speed:.4f}", str(src), str(out)]
+    if not nonlinear:
+        args.insert(1, "--linear")
     subprocess.run(args, check=True, capture_output=True)
 
 
@@ -45,16 +46,23 @@ def render(src, speed):
     speedy_out = CACHE / f"{src.stem}-{speed:g}-speedy.wav"
     even_out = CACHE / f"{src.stem}-{speed:g}-even.wav"
     if not (speedy_out.exists() and even_out.exists()):
-        # Speedy slows down for consonants, so it overshoots the requested length. Ask for more until the
-        # result is the length we want.
-        nominal = speed / 0.85
+        # Neither method lands exactly on the speed asked for, and equal length is what keeps the test
+        # blind. Adjust the request until the nonlinear version is the length wanted, then match the even
+        # version to it.
+        nominal = speed
         for _ in range(3):
-            run_speedy(src, speedy_out, nominal, nonlinear=True)
+            run_speechwarp(src, speedy_out, nominal, nonlinear=True)
             actual = duration(src) / duration(speedy_out)
             if abs(actual - speed) / speed < 0.01:
                 break
             nominal *= speed / actual
-        run_speedy(src, even_out, duration(src) / duration(speedy_out), nonlinear=False)
+        target = duration(speedy_out)
+        nominal = duration(src) / target
+        for _ in range(5):
+            run_speechwarp(src, even_out, nominal, nonlinear=False)
+            if abs(duration(even_out) - target) / target < 0.005:
+                break
+            nominal *= duration(even_out) / target
     return {"even": even_out, "speedy": speedy_out}
 
 
@@ -286,7 +294,7 @@ document.addEventListener('keyup', e => { if (e.key === ' ') e.preventDefault();
 
 if __name__ == "__main__":
     if len(SRC) < 2:
-        raise SystemExit(f"Put at least two mono 16-bit WAV files of speech in {HERE / 'src'} (see README.md).")
-    if not SPEEDY.exists():
-        raise SystemExit(f"speedy_wave not found at {SPEEDY}. Build it (see README.md) or set SPEEDY_WAVE.")
+        raise SystemExit(f"Put at least two 16-bit PCM WAV files of speech in {HERE / 'src'} (see README.md).")
+    if not SPEECHWARP.exists():
+        raise SystemExit(f"speechwarp not found at {SPEECHWARP}. Build it (see README.md) or set SPEECHWARP.")
     app.run(port=5005, threaded=True)
