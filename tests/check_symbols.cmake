@@ -21,8 +21,9 @@ set(found)
 foreach(line ${lines})
   string(REGEX REPLACE "^[0-9a-fA-F]+ [A-Za-z] _?" "" name "${line}")
   string(REGEX REPLACE "@.*" "" name "${name}")  # ELF symbol versions
-  # The linker adds these to every ELF shared library.
-  if(NOT name MATCHES "^(_?init|_?fini|_?_bss_start|_?edata|_?end|_?_end__|_?_bss_end__|_?_bss_start__)$")
+  # The linker adds the first set to every ELF shared library; the second come with the sanitizers.
+  if(NOT name MATCHES "^(_?init|_?fini|_?_bss_start|_?edata|_?end|_?_end__|_?_bss_end__|_?_bss_start__)$"
+     AND NOT name MATCHES "^_*(asan|odr_asan|ubsan|sanitizer)_")
     list(APPEND found ${name})
   endif()
 endforeach()
