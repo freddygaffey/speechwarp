@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - speechwarp (0.1.0):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - speechwarp (from `.symlinks/plugins/speechwarp/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  speechwarp:
+    :path: ".symlinks/plugins/speechwarp/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  speechwarp: ee09d71045b2b51247372a222e17b729d7df7f8b
+
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
+
+COCOAPODS: 1.16.2

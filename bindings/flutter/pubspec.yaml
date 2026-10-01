@@ -1,0 +1,33 @@
+name: speechwarp
+description: "Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the Sonic library."
+version: 0.1.0 # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
+homepage: https://github.com/freddygaffey/speechwarp
+repository: https://github.com/freddygaffey/speechwarp
+
+environment:
+  sdk: ^3.5.0
+  flutter: '>=3.24.0'
+
+dependencies:
+  ffi: ^2.1.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true
+      linux:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true
