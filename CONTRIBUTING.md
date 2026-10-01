@@ -11,7 +11,7 @@
 | `tools/` | The `speechwarp` command-line tool. |
 | `bindings/` | One folder per language. |
 | `examples/`, `docs/` | What they say. |
-| `Package.swift`, `pyproject.toml`, `setup.py`, `MANIFEST.in` | At the top because Swift Package Manager and Python packaging look for them there; they belong to `bindings/swift` and `bindings/python`. |
+| `Package.swift`, `pyproject.toml`, `setup.py`, `MANIFEST.in`, `Cargo.toml`, `go.mod` | At the top because each of those package managers can only build what is under its own manifest, and the bindings compile the C sources. They belong to `bindings/swift`, `bindings/python`, `bindings/rust` and `bindings/go`. |
 
 ## Building and testing
 
@@ -24,6 +24,11 @@
 | Swift | `swift test` | Swift 5.7 |
 | Kotlin | `(cd bindings/android && ./gradlew :speechwarp:testReleaseUnitTest :speechwarp:assembleRelease)` | JDK 17 or later, Android SDK with NDK 27.1.12297006, `cmake` on the path |
 | JavaScript | `(cd bindings/js && npm install && npm run build && npm test)` | Node 20, Emscripten |
+| Rust | `cargo test` | Rust 1.63 |
+| Go | `go test ./bindings/go` | Go 1.21, a C compiler |
+| Java (desktop) | `(cd bindings/java && ./gradlew build)` | JDK 17 or later, `cmake` on the path |
+| Flutter | `cmake --build build`, then `(cd bindings/flutter && SPEECHWARP_LIBRARY=$PWD/../../build/libspeechwarp.dylib flutter test)` and `(cd bindings/flutter/example && flutter test integration_test -d macos)` | Flutter 3.24 |
+| React Native | `(cd bindings/react-native && yarn install && yarn prepare && yarn typecheck && yarn test)` | Node 22 |
 
 CI runs all of these on every push; see `.github/workflows/`.
 
@@ -43,15 +48,18 @@ and to `docs/api.md`.
 **Any build must work from five files.** Compiling `src/*.c` with `include/` and `third_party/kissfft/` on the
 include path and `NDEBUG` defined is the whole build. The Swift, Python, Android and WebAssembly builds
 depend on that, so a new source file has to be added to each of them: `CMakeLists.txt`, `Package.swift`,
-`setup.py`, `bindings/android/speechwarp/src/main/cpp/CMakeLists.txt` and `bindings/js/build.sh`.
+`setup.py`, `bindings/android/speechwarp/src/main/cpp/CMakeLists.txt`, `bindings/js/build.sh`,
+`bindings/rust/build.rs`, a `c_*.c` file in `bindings/go`, `bindings/flutter/src/CMakeLists.txt` with a file
+in each of `bindings/flutter/ios/Classes` and `macos/Classes`, and `bindings/react-native/android/CMakeLists.txt`.
 
 **Examples must run.** `examples/c/player.c` is a test. Run the others before changing them.
 
 ## Versions
 
 The version is `SPEECHWARP_VERSION` in `include/speechwarp.h`. CMake, Python and Gradle read it from there.
-Two places repeat it and have tests that fail when they disagree: `bindings/dotnet/Speechwarp/Speechwarp.csproj`
-and `bindings/js/package.json`. Update the three numeric macros in the header as well, and `CHANGELOG.md`.
+These repeat it, and each has a test that fails when it disagrees: `bindings/dotnet/Speechwarp/Speechwarp.csproj`,
+`bindings/js/package.json`, `Cargo.toml` and `bindings/flutter/pubspec.yaml`. `bindings/react-native/package.json`
+and the two Flutter podspecs repeat it with no test. Update the three numeric macros in the header as well, and `CHANGELOG.md`.
 
 ## Licences
 

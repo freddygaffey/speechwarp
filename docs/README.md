@@ -11,5 +11,7 @@
 
 Each binding also has a short README of its own with installation and a first example:
 [C#](../bindings/dotnet/), [Python](../bindings/python/), [Swift](../bindings/swift/),
-[Kotlin](../bindings/android/), [JavaScript](../bindings/js/). For C, the header
+[Kotlin](../bindings/android/), [JavaScript](../bindings/js/), [Flutter](../bindings/flutter/),
+[React Native](../bindings/react-native/), [Rust](../bindings/rust/), [Go](../bindings/go/),
+[Java](../bindings/java/). For C, the header
 [`include/speechwarp.h`](../include/speechwarp.h) is the reference.

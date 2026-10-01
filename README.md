@@ -24,6 +24,11 @@ but have had no other use yet. Bindings:
 | Swift | [`bindings/swift/`](bindings/swift/) | macOS, iOS, tvOS, watchOS |
 | Kotlin / Java | [`bindings/android/`](bindings/android/) | Android 5.0 and later |
 | JavaScript / TypeScript | [`bindings/js/`](bindings/js/) | browsers, Node, AudioWorklet (WebAssembly) |
+| Dart / Flutter | [`bindings/flutter/`](bindings/flutter/) | Android, iOS, macOS, Linux, Windows |
+| React Native | [`bindings/react-native/`](bindings/react-native/) | Android, iOS (New Architecture) |
+| Rust | [`bindings/rust/`](bindings/rust/) | anywhere with a C compiler |
+| Go | [`bindings/go/`](bindings/go/) | anywhere with a C compiler (cgo) |
+| Java (desktop) | [`bindings/java/`](bindings/java/) | Linux, macOS, Windows |
 
 Nothing is published to a package registry yet.
 

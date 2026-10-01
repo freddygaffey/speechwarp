@@ -12,6 +12,10 @@ Each of these runs. Where it needs a recording, any 16-bit PCM WAV file of speec
 | [`swift`](swift/) | Swift | Converting any audio file the system can read, with AVFoundation. |
 | [`android/SpeechPlayer.kt`](android/SpeechPlayer.kt) | Kotlin | The playback thread of a player with `AudioTrack`, with locking. A sketch: it compiles but has not been run on a device. |
 | [`node/speed-up-wav.mjs`](node/speed-up-wav.mjs) | JavaScript | Converting a WAV file in Node. |
+| [`rust/speed_up_wav.rs`](rust/speed_up_wav.rs) | Rust | Converting a WAV file, streaming it through. |
+| [`go/main.go`](go/main.go) | Go | Converting a WAV file, streaming it through. |
+| [`../bindings/flutter/example/`](../bindings/flutter/example/) | Dart | A Flutter app that runs the library on the device and shows the result. |
+| [`../bindings/react-native/example/`](../bindings/react-native/example/) | TypeScript | The same, as a React Native app. |
 | [`../bindings/js/example/`](../bindings/js/example/) | JavaScript | A browser player in an AudioWorklet. |
 | [`blind-ab-test`](blind-ab-test/) | Python, browser | A blind listening test of even against nonlinear speed-up, on your own recordings. |
 
@@ -36,6 +40,12 @@ dotnet run --project examples/dotnet/SpeedUpWav -- talk.wav talk-3x.wav 3
 
 # Swift
 (cd examples/swift && swift run speedup talk.wav talk-3x.wav 3)
+
+# Rust
+cargo run --release --example speed_up_wav -- talk.wav talk-3x.wav 3
+
+# Go
+go run ./examples/go talk.wav talk-3x.wav 3
 
 # JavaScript (needs Emscripten to build the package)
 (cd bindings/js && npm install && npm run build)

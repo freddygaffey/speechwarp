@@ -22,6 +22,26 @@ authority; the bindings add only what their language expects, such as exceptions
 | Speed limits | `SPEECHWARP_MIN_SPEED`, `_MAX_SPEED` | `MinSpeed`, `MaxSpeed` | `MIN_SPEED`, `MAX_SPEED` | `speedRange` | `MIN_SPEED`, `MAX_SPEED` | `MIN_SPEED`, `MAX_SPEED` |
 | Whole recording at once | - | - | `speechwarp.speed_up(samples, rate, speed, nonlinear=1)` | - | - | - |
 
+The same, for the other bindings:
+
+| | Dart (Flutter) | React Native | Rust | Go | Java (desktop) |
+|---|---|---|---|---|---|
+| Stream type | `SpeechwarpStream` | `Stream` | `speechwarp::Stream` | `*speechwarp.Stream` | `SpeechwarpStream` |
+| Create | `SpeechwarpStream(rate, channels: 1)` | `new Stream(rate, channels = 1)` | `Stream::new(rate, channels)?` | `speechwarp.NewStream(rate, channels)` | `new SpeechwarpStream(rate, channels)` |
+| Destroy | `close()` | `free()` | automatic (`Drop`) | `Close()` | `close()` / try-with-resources |
+| Speed | `speed` | `speed` | `speed()`, `set_speed` | `Speed()`, `SetSpeed` | `speed()`, `setSpeed` |
+| Nonlinear amount | `nonlinear` | `nonlinear` | `nonlinear()`, `set_nonlinear` | `Nonlinear()`, `SetNonlinear` | `nonlinear()`, `setNonlinear` |
+| Write floats | `write(Float32List)` | `write(Float32Array)` | `write(&[f32])` | `Write([]float32)` | `write(float[], offset, length)` |
+| Write 16-bit | `writeInt16(Int16List)` | - | `write_i16(&[i16])` | `WriteInt16([]int16)` | `write(short[], offset, length)` |
+| Read floats | `read([maxFrames])` | `read(Float32Array)`, `read(maxFrames?)` | `read(&mut [f32])` | `Read([]float32)` | `read(float[], offset, length)` |
+| Read 16-bit | `readInt16([maxFrames])` | - | `read_i16(&mut [i16])` | `ReadInt16([]int16)` | `read(short[], offset, length)` |
+| Frames ready | `framesAvailable` | `available` | `available()` | `Available()` | `framesAvailable()` |
+| End of input | `flush()` | `flush()` | `flush()?` | `Flush()` | `flush()` |
+| Forget everything | `reset()` | `reset()` | `reset()` | `Reset()` | `reset()` |
+| Position | `position` | `position` | `position()` | `Position()` | `position()` |
+| Library version | `SpeechwarpStream.libraryVersion` | `version()` | `speechwarp::version()` | `speechwarp.Version()` | `SpeechwarpStream.libraryVersion()` |
+| Speed limits | `minSpeed`, `maxSpeed` | `MIN_SPEED`, `MAX_SPEED` | `MIN_SPEED`, `MAX_SPEED` | `MinSpeed`, `MaxSpeed` | `MIN_SPEED`, `MAX_SPEED` |
+
 ## Behaviour common to all
 
 **Create.** Sample rate 4000 to 384000, channels 1 to 32. Starts at speed 1 with nonlinear amount 1.
@@ -58,6 +78,11 @@ exactly the number of frames written.
 | Swift | ignored | throws `SpeechwarpError.outOfMemory` | cannot happen |
 | Kotlin | `IllegalArgumentException` | `OutOfMemoryError` | `IllegalStateException` |
 | JavaScript | `RangeError` | `Error` | `Error` |
+| Dart | `ArgumentError` | `OutOfMemoryError` | `StateError` |
+| React Native | `RangeError` | `Error` | `Error` |
+| Rust | ignored | `Err(Error::OutOfMemory)` | cannot happen |
+| Go | ignored | `ErrOutOfMemory` | `ErrClosed`, or a zero value from methods that return no error |
+| Java | `IllegalArgumentException` | `OutOfMemoryError` | `IllegalStateException` |
 
 Python returns mono as a one-dimensional array and anything else as `(frames, channels)`, and converts input
 that is not float32 or int16 to float32. JavaScript works in floats only, and adds per-channel ("planar")

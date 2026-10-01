@@ -108,8 +108,8 @@ It counts from the last `reset`, so a player adds the frame it seeked to:
 
 Very little can go wrong. Creating a stream fails for an unsupported sample rate or channel count. `write`
 and `flush` fail if memory runs out. In C these return `NULL` or 0; the bindings raise their language's usual
-error. Setting the speed to zero, a negative number or NaN is ignored in C and Swift and an error in the
-other bindings; the [API reference](api.md#differences-between-bindings) has the table.
+error. Setting the speed to zero, a negative number or NaN is ignored in C, Swift, Rust and Go and an error in
+the other bindings; the [API reference](api.md#differences-between-bindings) has the table.
 
 ## Threads
 
