@@ -1,0 +1,39 @@
+# The Rust crate. It is at the top of the repository because it compiles the C sources in src/ and
+# third_party/, which a crate cannot reach from a subfolder. The Rust code is in bindings/rust.
+[package]
+name = "speechwarp"
+version = "0.1.0" # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
+edition = "2021"
+rust-version = "1.63"
+description = "Nonlinear speed-up for speech: listen faster and still follow it"
+license = "Apache-2.0 AND BSD-3-Clause"
+repository = "https://github.com/freddygaffey/speechwarp"
+readme = "bindings/rust/README.md"
+keywords = ["speech", "audio", "time-stretch", "sonic", "audiobook"]
+categories = ["multimedia::audio", "api-bindings"]
+build = "bindings/rust/build.rs"
+links = "speechwarp"
+autotests = false
+autoexamples = false
+autobenches = false
+include = [
+    "/Cargo.toml", "/LICENSE", "/NOTICE",
+    "/include/*.h", "/src/*.c", "/src/*.h",
+    "/third_party/**",
+    "/bindings/rust/**",
+    "/examples/rust/**",
+]
+
+[lib]
+path = "bindings/rust/src/lib.rs"
+
+[[test]]
+name = "stream"
+path = "bindings/rust/tests/stream.rs"
+
+[[example]]
+name = "speed_up_wav"
+path = "examples/rust/speed_up_wav.rs"
+
+[build-dependencies]
+cc = "1"
