@@ -66,6 +66,8 @@ tasks.named("sourcesJar") { dependsOn(buildNative) }
 // Native libraries built elsewhere (by CI, for the other systems) go in extra-natives/natives/... and are
 // packed too.
 sourceSets.main { resources.srcDir("extra-natives") }
+// This computer's library is then there twice, once built here and once from elsewhere. Either will do.
+tasks.withType<AbstractCopyTask>().configureEach { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
 
 tasks.test {
     systemProperty("speechwarp.header", rootDir.resolve("../../include/speechwarp.h").path)

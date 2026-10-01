@@ -13,6 +13,14 @@ let package = Package(
         .target(
             name: "CSpeechwarp",
             path: ".",
+            // Everything here that is not this target's. Without it Swift Package Manager takes the example
+            // apps of the other bindings for resources of this one.
+            exclude: [
+                "bindings", "examples", "tests", "tools", "docs", "cmake", "third_party",
+                "CMakeLists.txt", "Cargo.toml", "go.mod", "pyproject.toml", "setup.py", "MANIFEST.in",
+                "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "NOTICE",
+                "src/internal.h", "src/rename.h", "src/fft.h",
+            ],
             sources: [
                 "src/speechwarp.c",
                 "src/fft.c",
