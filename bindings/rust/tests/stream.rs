@@ -148,3 +148,31 @@ fn a_stream_can_move_to_another_thread() {
     .unwrap();
     assert!(frames > 0);
 }
+
+#[test]
+fn high_speed_options() {
+    let mut stream = Stream::new(RATE, 1).unwrap();
+    assert_eq!((stream.pause_cap(), stream.keep_speed(), stream.speed_floor()), (0.0, true, 0.0));
+    assert_eq!((stream.rhythm_gap(), stream.rhythm_rate(), stream.syllable_rate()), (0.0, 5.0, None));
+    stream.set_pause_cap(5.0);
+    stream.set_speed_floor(0.5);
+    stream.set_rhythm_gap(0.04);
+    stream.set_rhythm_rate(100.0);
+    stream.set_keep_speed(false);
+    assert_eq!((stream.pause_cap(), stream.speed_floor(), stream.rhythm_rate()), (1.0, 0.5, 16.0));
+    assert!((stream.rhythm_gap() - 0.04).abs() < 1e-6 && !stream.keep_speed());
+}
+
+#[test]
+fn pause_cap_shortens_and_position_reaches_the_end() {
+    let input = signal(12.0, 1);
+    let mut stream = Stream::new(RATE, 1).unwrap();
+    stream.set_nonlinear(0.0);
+    stream.set_pause_cap(0.03);
+    stream.set_keep_speed(false);
+    stream.write(&input).unwrap();
+    stream.flush().unwrap();
+    assert!((read_all(&mut stream).len() as f64) < input.len() as f64 * 0.9);
+    assert_eq!(stream.position(), input.len() as u64);
+    assert!(stream.syllable_rate().is_some());
+}

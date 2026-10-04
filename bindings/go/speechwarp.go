@@ -134,6 +134,108 @@ func (s *Stream) SetNonlinear(amount float32) {
 	}
 }
 
+// Options for very high speeds (5x to 8x). All are off by default; out-of-range values are clamped and NaN
+// is ignored. See docs/how-it-works.md.
+
+// PauseCap returns the pause cap, in seconds of input; 0 is off.
+func (s *Stream) PauseCap() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_pause_cap(s.raw))
+}
+
+// SetPauseCap shortens every pause to at most this many seconds of input before speeding up, so that the
+// speed is spent on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1.
+// Position counts the frames left out.
+func (s *Stream) SetPauseCap(seconds float32) {
+	if s.raw != nil {
+		C.speechwarp_set_pause_cap(s.raw, C.float(seconds))
+	}
+}
+
+// KeepSpeed reports whether the overall speed is kept while the pause cap or rhythm is on.
+func (s *Stream) KeepSpeed() bool {
+	return s.raw != nil && C.speechwarp_get_keep_speed(s.raw) != 0
+}
+
+// SetKeepSpeed keeps the overall speed while the pause cap or rhythm is on (true, the default): time saved
+// in pauses is spent playing the words slower, never below 1x, and time spent in gaps is made up by playing
+// them faster. When false, trimmed pauses make playback faster than the speed.
+func (s *Stream) SetKeepSpeed(enabled bool) {
+	if s.raw != nil {
+		value := C.int(0)
+		if enabled {
+			value = 1
+		}
+		C.speechwarp_set_keep_speed(s.raw, value)
+	}
+}
+
+// SpeedFloor returns the speed floor, as a fraction of the speed; 0 is off.
+func (s *Stream) SpeedFloor() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_speed_floor(s.raw))
+}
+
+// SetSpeedFloor makes no 10 ms block of speech play slower than this fraction of the speed: at 8x, 0.5 keeps
+// every block at 4x or more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. It
+// applies only with nonlinear speed-up above 1x.
+func (s *Stream) SetSpeedFloor(fraction float32) {
+	if s.raw != nil {
+		C.speechwarp_set_speed_floor(s.raw, C.float(fraction))
+	}
+}
+
+// RhythmGap returns the rhythm gap, in seconds; 0 is off.
+func (s *Stream) RhythmGap() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_rhythm_gap(s.raw))
+}
+
+// SetRhythmGap puts this many seconds of silence into the output RhythmRate times a second, at the quietest
+// point nearby, which can help the listener keep up at very high speeds. 0 (the default) is off. Sensible:
+// 0.02 to 0.06. Allowed: 0, or 0.005 to 0.2. Position holds still during a gap.
+func (s *Stream) SetRhythmGap(seconds float32) {
+	if s.raw != nil {
+		C.speechwarp_set_rhythm_gap(s.raw, C.float(seconds))
+	}
+}
+
+// RhythmRate returns the rhythm gaps a second of output.
+func (s *Stream) RhythmRate() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_rhythm_rate(s.raw))
+}
+
+// SetRhythmRate sets the rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. Zero,
+// negative numbers and NaN are ignored.
+func (s *Stream) SetRhythmRate(perSecond float32) {
+	if s.raw != nil {
+		C.speechwarp_set_rhythm_rate(s.raw, C.float(perSecond))
+	}
+}
+
+// SyllableRate returns the syllables a second in the input, pauses included, over about the last 60 s
+// written, and false until 10 s have been written since creation or Reset. Multiply by the speed for the
+// rate heard. It is an estimate, typically within about 10%.
+func (s *Stream) SyllableRate() (float64, bool) {
+	if s.raw == nil {
+		return 0, false
+	}
+	rate := float64(C.speechwarp_syllable_rate(s.raw))
+	if rate < 0 {
+		return 0, false
+	}
+	return rate, true
+}
+
 // Write adds interleaved input. The output does not depend on how the input is divided between calls.
 func (s *Stream) Write(samples []float32) error {
 	frames, err := s.wholeFrames(len(samples))

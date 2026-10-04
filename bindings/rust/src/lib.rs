@@ -52,6 +52,17 @@ extern "C" {
     fn speechwarp_get_speed(stream: *const Raw) -> f32;
     fn speechwarp_set_nonlinear(stream: *mut Raw, amount: f32);
     fn speechwarp_get_nonlinear(stream: *const Raw) -> f32;
+    fn speechwarp_set_pause_cap(stream: *mut Raw, seconds: f32);
+    fn speechwarp_get_pause_cap(stream: *const Raw) -> f32;
+    fn speechwarp_set_keep_speed(stream: *mut Raw, enabled: c_int);
+    fn speechwarp_get_keep_speed(stream: *const Raw) -> c_int;
+    fn speechwarp_set_speed_floor(stream: *mut Raw, fraction: f32);
+    fn speechwarp_get_speed_floor(stream: *const Raw) -> f32;
+    fn speechwarp_set_rhythm_gap(stream: *mut Raw, seconds: f32);
+    fn speechwarp_get_rhythm_gap(stream: *const Raw) -> f32;
+    fn speechwarp_set_rhythm_rate(stream: *mut Raw, per_second: f32);
+    fn speechwarp_get_rhythm_rate(stream: *const Raw) -> f32;
+    fn speechwarp_syllable_rate(stream: *const Raw) -> f64;
     fn speechwarp_write(stream: *mut Raw, samples: *const f32, frames: c_int) -> c_int;
     fn speechwarp_write_i16(stream: *mut Raw, samples: *const i16, frames: c_int) -> c_int;
     fn speechwarp_read(stream: *mut Raw, samples: *mut f32, max_frames: c_int) -> c_int;
@@ -156,6 +167,77 @@ impl Stream {
     /// pauses, as a fast talker does. 0 compresses everything evenly. May be changed during playback.
     pub fn set_nonlinear(&mut self, amount: f32) {
         unsafe { speechwarp_set_nonlinear(self.raw.as_ptr(), amount) }
+    }
+
+    // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped and NaN
+    // is ignored. See docs/how-it-works.md.
+
+    /// The pause cap, in seconds of input; 0 is off.
+    pub fn pause_cap(&self) -> f32 {
+        unsafe { speechwarp_get_pause_cap(self.raw.as_ptr()) }
+    }
+
+    /// Shortens every pause to at most this many seconds of input before speeding up, so that the speed is
+    /// spent on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1.
+    /// [`position`](Stream::position) counts the frames left out.
+    pub fn set_pause_cap(&mut self, seconds: f32) {
+        unsafe { speechwarp_set_pause_cap(self.raw.as_ptr(), seconds) }
+    }
+
+    /// Whether the overall speed is kept while the pause cap or rhythm is on.
+    pub fn keep_speed(&self) -> bool {
+        unsafe { speechwarp_get_keep_speed(self.raw.as_ptr()) != 0 }
+    }
+
+    /// While the pause cap or rhythm is on, keeps the overall speed (true, the default): time saved in pauses
+    /// is spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them
+    /// faster. When false, trimmed pauses make playback faster than the speed.
+    pub fn set_keep_speed(&mut self, enabled: bool) {
+        unsafe { speechwarp_set_keep_speed(self.raw.as_ptr(), enabled as c_int) }
+    }
+
+    /// The speed floor, as a fraction of the speed; 0 is off.
+    pub fn speed_floor(&self) -> f32 {
+        unsafe { speechwarp_get_speed_floor(self.raw.as_ptr()) }
+    }
+
+    /// No 10 ms block of speech plays slower than this fraction of the speed: at 8x, 0.5 keeps every block at
+    /// 4x or more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with
+    /// nonlinear speed-up above 1x.
+    pub fn set_speed_floor(&mut self, fraction: f32) {
+        unsafe { speechwarp_set_speed_floor(self.raw.as_ptr(), fraction) }
+    }
+
+    /// The rhythm gap, in seconds; 0 is off.
+    pub fn rhythm_gap(&self) -> f32 {
+        unsafe { speechwarp_get_rhythm_gap(self.raw.as_ptr()) }
+    }
+
+    /// Puts this many seconds of silence into the output [`rhythm_rate`](Stream::rhythm_rate) times a second,
+    /// at the quietest point nearby, which can help the listener keep up at very high speeds. 0 (the default)
+    /// is off. Sensible: 0.02 to 0.06. Allowed: 0, or 0.005 to 0.2. [`position`](Stream::position) holds
+    /// still during a gap.
+    pub fn set_rhythm_gap(&mut self, seconds: f32) {
+        unsafe { speechwarp_set_rhythm_gap(self.raw.as_ptr(), seconds) }
+    }
+
+    /// Rhythm gaps a second of output.
+    pub fn rhythm_rate(&self) -> f32 {
+        unsafe { speechwarp_get_rhythm_rate(self.raw.as_ptr()) }
+    }
+
+    /// Sets the rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. Zero, negative numbers
+    /// and NaN are ignored.
+    pub fn set_rhythm_rate(&mut self, per_second: f32) {
+        unsafe { speechwarp_set_rhythm_rate(self.raw.as_ptr(), per_second) }
+    }
+
+    /// Syllables a second in the input, pauses included, over about the last 60 s written; `None` until 10 s
+    /// have been written since creation or [`reset`](Stream::reset). Multiply by the speed for the rate heard.
+    /// An estimate, typically within about 10%.
+    pub fn syllable_rate(&self) -> Option<f64> {
+        let rate = unsafe { speechwarp_syllable_rate(self.raw.as_ptr()) };
+        (rate >= 0.0).then_some(rate)
     }
 
     /// Adds interleaved input. The output does not depend on how the input is divided between calls.

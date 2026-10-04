@@ -219,3 +219,47 @@ func TestResetDiscardsEverything(t *testing.T) {
 		}
 	}
 }
+
+func TestHighSpeedOptions(t *testing.T) {
+	s, _ := NewStream(rate, 1)
+	defer s.Close()
+	if s.PauseCap() != 0 || !s.KeepSpeed() || s.SpeedFloor() != 0 || s.RhythmGap() != 0 || s.RhythmRate() != 5 {
+		t.Fatal("the options should start off")
+	}
+	if _, ok := s.SyllableRate(); ok {
+		t.Fatal("no syllable rate before 10 s")
+	}
+	s.SetPauseCap(5)
+	s.SetSpeedFloor(0.5)
+	s.SetRhythmGap(0.04)
+	s.SetRhythmRate(100)
+	s.SetKeepSpeed(false)
+	if s.PauseCap() != 1 || s.SpeedFloor() != 0.5 || math.Abs(float64(s.RhythmGap())-0.04) > 1e-6 ||
+		s.RhythmRate() != 16 || s.KeepSpeed() {
+		t.Fatal("the options should be clamped")
+	}
+}
+
+func TestPauseCapShortensAndPositionReachesTheEnd(t *testing.T) {
+	input := signal(12, 1)
+	s, _ := NewStream(rate, 1)
+	defer s.Close()
+	s.SetNonlinear(0)
+	s.SetPauseCap(0.03)
+	s.SetKeepSpeed(false)
+	if err := s.Write(input); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if out := readAll(t, s); float64(len(out)) >= float64(len(input))*0.9 {
+		t.Fatalf("%d frames out of %d in", len(out), len(input))
+	}
+	if s.Position() != int64(len(input)) {
+		t.Fatalf("position %d, want %d", s.Position(), len(input))
+	}
+	if _, ok := s.SyllableRate(); !ok {
+		t.Fatal("expected a syllable rate after 12 s")
+	}
+}
