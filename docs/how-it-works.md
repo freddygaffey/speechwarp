@@ -163,7 +163,8 @@ the syllables are a rule-based count of the text (386). What it shows:
   question; it is the one to settle by listening.
 - The syllable counter read the input within -10% to +3% of the count from the text.
 
-Whether any of this helps comprehension needs listening, for example with the
+[`tools/evaluate/evaluate.py`](../tools/evaluate/evaluate.py) reproduces the table on a Mac. Whether any of this
+helps comprehension needs listening, for example with the
 [blind A/B test](../examples/blind-ab-test/), which can compare any two of these settings.
 
 ## Numbers
