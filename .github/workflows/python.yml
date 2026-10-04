@@ -1,11 +1,16 @@
 name: Python
 
 # Builds a wheel for every platform and Python version and runs the tests against each. The wheels and the
-# source distribution are left as artifacts. Nothing is published from here.
+# source distribution are left as artifacts.
+#
+# Pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) also publishes them to PyPI, once every
+# build has passed. PyPI trusts this workflow directly ("trusted publishing"), so no token is stored here; the
+# trust is set up on PyPI for this repository, this file and the environment `pypi`.
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -46,3 +51,23 @@ jobs:
         with:
           name: sdist
           path: dist/*.tar.gz
+
+  publish:
+    # Only for version tags, and only once every wheel and the sdist have built and passed their tests.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # lets PyPI check that the upload comes from this workflow
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Check the tag matches the version being published
+        run: |
+          ls dist
+          test -f "dist/speechwarp-${GITHUB_REF_NAME#v}.tar.gz" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in include/speechwarp.h"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@release/v1
