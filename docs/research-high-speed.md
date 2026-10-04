@@ -78,6 +78,12 @@ Ordered by expected benefit per effort. "Evidence" is how well the idea is suppo
 Recommendation: do 1, 2 and 3 first, with a blind A/B test at 5x, 6.5x and 8x. Then try 4, since it is the
 idea most likely to move the ceiling. Leave 5 to 7 until those results are in.
 
+**Done in 0.2.0:** 1, 3 and 4, as options of the library (with keep overall speed, and a syllable counter for
+measuring). A first measurement on synthetic speech is in
+[How it works](how-it-works.md#a-first-evaluation): the pause cap gains about 6% slower words on top of
+Speedy, the floor evens out the slowest parts, and rhythm costs a third faster words between its gaps. None of
+it has been tested by listening yet.
+
 ## Sources
 
 - Covell, Withgott, Slaney. [MACH1: Nonuniform time-scale modification of speech](https://www.mangolassi.org/covell/1997-060/). ICASSP 1998.

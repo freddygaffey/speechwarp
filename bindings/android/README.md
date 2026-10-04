@@ -29,6 +29,24 @@ It works from Java too: the optional arguments have overloads.
 The library is an AAR for Android 5.0 (API 21) and later, with native code for arm64-v8a, armeabi-v7a, x86_64
 and x86, aligned for 16 KB pages.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```kotlin
+stream.speed = 6.5f
+stream.pauseCap = 0.06f   // shorten every pause to at most 60 ms
+stream.speedFloor = 0.5f  // no part of the speech slower than half the speed
+stream.rhythmGap = 0.04f  // a 40 ms silence...
+stream.rhythmRate = 6f    // ...six times a second
+// keepSpeed (true by default) holds the overall speed at 6.5x despite all of that.
+```
+
+`syllableRate` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is `null` until 10 s have been written.
+
 ## Building it here
 
 Needs the Android SDK with NDK 27.1.12297006 and CMake 3.22.1, a JDK, and `cmake` on the path for the tests.

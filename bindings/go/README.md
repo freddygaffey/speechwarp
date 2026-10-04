@@ -31,6 +31,24 @@ ends in `bindings/go`.
 The [guide](../../docs/guide.md) explains these, and [Building a player](../../docs/player.md) covers
 real-time playback.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```go
+s.SetSpeed(6.5)
+s.SetPauseCap(0.06)   // shorten every pause to at most 60 ms
+s.SetSpeedFloor(0.5)  // no part of the speech slower than half the speed
+s.SetRhythmGap(0.04)  // a 40 ms silence...
+s.SetRhythmRate(6)    // ...six times a second
+// KeepSpeed (true by default) holds the overall speed at 6.5x despite all of that.
+```
+
+`SyllableRate()` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is reported as not known (`ok` is false) until 10 s have been written.
+
 ## Building it here
 
 From the top of the repository:

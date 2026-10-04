@@ -52,7 +52,8 @@ static void apply(speechwarp_stream* s, const options* o) {
 }
 
 /* Run mono float input through a stream in pieces of `chunk` frames (0: random sizes). */
-static recording process(const float* in, int frames, float speed, float nonlinear, const options* o, int chunk) {
+static recording process(const float* in, int frames, float speed, float nonlinear, const options* o,
+                         int chunk) {
   recording out = {NULL, 0, 0, 1, 0};
   speechwarp_stream* s = speechwarp_create(RATE, 1);
   int64_t last_position = 0;
@@ -272,7 +273,8 @@ static void test_keep_speed(void) {
       o.keep_speed = 0;
       capped = process(in, frames, speeds[k], (float)nonlinear, &o, 0);
 
-      printf("speed %g nonlinear %d: kept %.3f, with rhythm and floor %.3f, not kept %.3f of the target length\n",
+      printf("speed %g nonlinear %d: kept %.3f, with rhythm and floor %.3f, not kept %.3f of the target "
+             "length\n",
              speeds[k], nonlinear, kept.frames / target, both.frames / target, capped.frames / target);
       CHECK(fabs(kept.frames / target - 1) < 0.04);
       CHECK(fabs(both.frames / target - 1) < 0.04);
@@ -413,7 +415,9 @@ static void test_syllable_rate(void) {
     float* silence = (float*)calloc((size_t)RATE * 12, sizeof(float));
     float* sound = (float*)malloc((size_t)RATE * 12 * sizeof(float));
     int i;
-    for (i = 0; i < RATE * 12; i++) sound[i] = (float)(pow(sin(PI * i * 5.0 / RATE), 2) * voice((double)i / RATE));
+    for (i = 0; i < RATE * 12; i++) {
+      sound[i] = (float)(pow(sin(PI * i * 5.0 / RATE), 2) * voice((double)i / RATE));
+    }
     speechwarp_set_speed(s, 4);
     speechwarp_write(s, sound, RATE * 12);
     CHECK(speechwarp_syllable_rate(s) > 4);

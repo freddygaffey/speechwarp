@@ -722,7 +722,8 @@ static int gate_write(speechwarp_stream* s, const int16_t* in, int frames) {
   }
   while (frames > 0) {
     int take = s->block - s->partial_frames < frames ? s->block - s->partial_frames : frames;
-    memcpy(s->partial + (size_t)s->partial_frames * s->channels, in, (size_t)take * s->channels * sizeof(int16_t));
+    memcpy(s->partial + (size_t)s->partial_frames * s->channels, in,
+           (size_t)take * s->channels * sizeof(int16_t));
     s->partial_frames += take;
     in += (size_t)take * s->channels;
     frames -= take;
@@ -759,7 +760,8 @@ static int move_to_ready(speechwarp_stream* s, int frames) {
   if (!float_room(&s->ready, &s->ready_capacity, s->ready_offset + s->ready_frames, frames, s->channels)) {
     return 0;
   }
-  memcpy(s->ready + (size_t)(s->ready_offset + s->ready_frames) * s->channels, s->pending, samples * sizeof(float));
+  memcpy(s->ready + (size_t)(s->ready_offset + s->ready_frames) * s->channels, s->pending,
+         samples * sizeof(float));
   s->ready_frames += frames;
   s->pending_frames -= frames;
   memmove(s->pending, s->pending + samples, (size_t)s->pending_frames * s->channels * sizeof(float));
@@ -810,7 +812,8 @@ static int rhythm_fill(speechwarp_stream* s) {
     if (!float_room(&s->pending, &s->pending_capacity, s->pending_frames, available, s->channels)) {
       return 0;
     }
-    available = sonicReadFloatFromStream(s->sonic, s->pending + (size_t)s->pending_frames * s->channels, available);
+    available =
+        sonicReadFloatFromStream(s->sonic, s->pending + (size_t)s->pending_frames * s->channels, available);
     s->pending_frames += available;
     s->sonic_taken += available;
   }
@@ -1037,7 +1040,8 @@ void speechwarp_set_pause_cap(speechwarp_stream* stream, float seconds) {
   blocks = pause_cap_blocks(stream);
   blocks = blocks - blocks / 2;
   if (blocks > stream->tail_capacity) {
-    int16_t* grown = (int16_t*)realloc(stream->tail, (size_t)blocks * stream->block * stream->channels * sizeof(int16_t));
+    size_t bytes = (size_t)blocks * stream->block * stream->channels * sizeof(int16_t);
+    int16_t* grown = (int16_t*)realloc(stream->tail, bytes);
     if (!grown) {
       stream->pause_cap = 0;
       return;

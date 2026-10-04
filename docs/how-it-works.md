@@ -81,6 +81,91 @@ upstream's.
 `src/rename.h` gives every third-party symbol a `speechwarp_priv_` prefix, so the library can be linked next
 to another copy, statically too.
 
+## Options for very high speeds
+
+Audiobook narration runs at 4 to 5 syllables a second. At 6x that would be 24 to 30, and the best trained
+listeners are known to follow 17 to 22 ([the research notes](research-high-speed.md) have the sources). Five
+options, all off by default, are meant for 5x to 8x. With them off, the library does exactly what it did
+before, and `tests/test_parity.c` still checks that sample for sample.
+
+```
+input ─► syllable counter ─► pause cap ─► Speedy and Sonic (with speed floor) ─► rhythm ─► output
+                                   └──────── keep overall speed ────────┘
+```
+
+**Pause cap** (`speechwarp_set_pause_cap`, seconds). Before Speedy sees the audio, every pause is shortened
+to at most this much input. A 10 ms block is part of a pause if it is 30 dB or more below the level of recent
+speech (the loudest recent block, forgotten at 0.5 dB a second), or below -70 dBFS. The first half of a pause
+goes on as it is; the rest is held back, and only the last half-cap's worth is kept when speech returns. The
+cut is crossfaded over one block so it does not click, and `speechwarp_position` accounts for every frame left
+out. 0.06 s keeps a pause just long enough to hear that there was one.
+
+**Keep overall speed** (`speechwarp_set_keep_speed`, on by default, but it only matters while the pause cap
+or rhythm is on). Time saved by the pause cap is counted against the average-speed correction, and time spent
+in rhythm gaps is counted for it, so 6x still takes a sixth of the time and the saving goes to slower words.
+For that the correction is allowed to slow down as well as speed up, but never below 1x, and it never more
+than doubles the speed. With it off, trimmed pauses make playback faster than the speed set.
+
+**Speed floor** (`speechwarp_set_speed_floor`, a fraction of the speed). Speedy can slow the tensest blocks
+all the way to 1x, so at 8x the slack ones must run far faster than 8x to make up the time. A floor of 0.5
+keeps every block at 4x or more at 8x. It is applied in `src/speechwarp.c` to the speed Speedy chooses; the
+upstream files are untouched. 1 makes it the same as linear.
+
+**Rhythm** (`speechwarp_set_rhythm_gap`, seconds, and `speechwarp_set_rhythm_rate`, gaps a second). Ghitza
+and Greenberg (2009) found that speech compressed to a third of its length was far easier to follow with
+short silences put back at a regular rate: the gaps let the listener's syllable rhythm keep up. After Sonic,
+a small stage puts a silence of the gap length into the output at the rate set, at the quietest point within
+30% of a chunk of where the rate puts it, with 5 ms raised-cosine fades either side. The gaps count as output
+for keep overall speed, so the speech between them is compressed harder; `speechwarp_position` holds still
+during a gap. The stage adds about 0.1 s of latency. It takes Sonic's output as each block is released, not
+as it is read, so the output still does not depend on how reads and writes are timed.
+
+**Syllable rate** (`speechwarp_syllable_rate`). An estimate of syllables a second in the input over the last
+60 s, from syllable nuclei: peaks of loudness in voiced sound, each with a dip on both sides (de Jong and
+Wempe, 2009). 10 ms frames band-passed to 250 Hz to 3 kHz, smoothed over 4 frames; a peak must stand 1 dB
+above the dips, be within 25 dB of the loudest recent speech, be voiced (under 3000 zero crossings a second),
+and be at least 60 ms after the last. It runs on all input whatever the options, and costs little. It was
+ported from the C# player this library was written for.
+
+### A first evaluation
+
+Five macOS voices (Samantha, Daniel, Karen, Moira and Tessa) read the same 300-word passage at 160 words a
+minute, 88 to 101 s each and about 15% pauses. Averages over the five:
+
+| Speed | Setting | Overall speed | Syllables a second, overall | While speech plays |
+|-------|---------|---------------|-----------------------------|--------------------|
+| 5x | even | 5.03 | 21.0 | 24.0 |
+| 5x | Speedy | 5.04 | 21.0 | 22.9 |
+| 5x | + pause cap 0.06 s | 5.05 | 21.0 | 21.5 |
+| 5x | + floor 0.5 | 5.06 | 21.1 | 21.6 |
+| 5x | + rhythm 40 ms, 6 a second | 5.00 | 20.8 | 27.6 |
+| 6.5x | even | 6.55 | 27.3 | 30.9 |
+| 6.5x | Speedy | 6.56 | 27.4 | 29.5 |
+| 6.5x | + pause cap 0.06 s | 6.57 | 27.4 | 27.7 |
+| 6.5x | + floor 0.5 | 6.59 | 27.5 | 27.9 |
+| 6.5x | + rhythm 40 ms, 6 a second | 6.52 | 27.2 | 35.7 |
+| 8x | even | 8.09 | 33.7 | 37.8 |
+| 8x | Speedy | 8.10 | 33.8 | 36.0 |
+| 8x | + pause cap 0.06 s | 8.11 | 33.8 | 34.0 |
+| 8x | + floor 0.5 | 8.13 | 33.9 | 34.1 |
+| 8x | + rhythm 40 ms, 6 a second | 8.05 | 33.6 | 43.6 |
+
+"While speech plays" leaves out output quieter than 30 dB below the loudest, which is the pauses and gaps;
+the syllables are a rule-based count of the text (386). What it shows:
+
+- Every setting lands on the speed asked for, to within 2%.
+- Speedy already squeezes pauses hard, so the pause cap gains less on top of it than on even speed-up: the
+  words come about 6% slower (29.5 to 27.7 syllables a second at 6.5x), which is nearly all there is to gain,
+  since the overall rate is 27.4. On narration with longer pauses than these voices leave, it gains more.
+- The floor leaves the averages alone and evens out the effort: at 8x the slowest 5% of the speech went from
+  3.2x to 4.3x.
+- Rhythm buys its gaps by playing the words a third faster. Whether the gaps make up for that is the open
+  question; it is the one to settle by listening.
+- The syllable counter read the input within -10% to +3% of the count from the text.
+
+Whether any of this helps comprehension needs listening, for example with the
+[blind A/B test](../examples/blind-ab-test/), which can compare any two of these settings.
+
 ## Numbers
 
 | | |
@@ -92,6 +177,11 @@ to another copy, statically too.
 | Speed range | 0.05 to 20 |
 | Settling time of the average speed | about 4 s of input |
 | Internal sample format | 16-bit |
+| Pause cap | 0, or 0.01 to 1 s; a pause is 30 dB below recent speech |
+| Speed floor | 0 to 1 of the speed |
+| Rhythm gap | 0, or 0.005 to 0.2 s, faded over 5 ms; rate 1 to 16 a second, default 5 |
+| Extra latency with rhythm on | about 0.1 s of output |
+| Syllable rate | over the last 60 s; none until 10 s |
 
 ## Limits worth knowing
 
@@ -99,5 +189,8 @@ to another copy, statically too.
   from music.
 - Speedy's constants were tuned by its authors on English read speech. Other languages and very different
   voices work but have not been measured.
-- The speed correction in this library has so far been tuned on a synthetic signal, not on recordings of
-  speech. The two constants are `CORRECTION_TIME` and `TYPICAL_SHORTFALL` in `src/speechwarp.c`.
+- The speed correction was tuned on a synthetic signal and checked on synthetic speech from macOS voices (see
+  above), not on recordings of people. The two constants are `CORRECTION_TIME` and `TYPICAL_SHORTFALL` in
+  `src/speechwarp.c`.
+- The options for very high speeds have been measured but not yet listened to systematically. The pause
+  threshold assumes a quiet background; a noisy recording may not reach 30 dB below its speech.

@@ -117,8 +117,8 @@ SPEECHWARP_API float speechwarp_get_pause_cap(const speechwarp_stream* stream);
 /* Keep overall speed: 1 (the default) or 0. Takes effect only while the pause cap or rhythm is on. When on,
  * time saved by the pause cap is spent playing the words slower, and time spent in rhythm gaps is made up by
  * playing them faster, so that 6x still finishes in a sixth of the time. The speech is never slowed below 1x,
- * and never sped up beyond twice the speed. When off, trimmed pauses make playback faster than the set speed,
- * and gaps make it slower. */
+ * and the correction never more than doubles the speed. When off, trimmed pauses make playback faster than
+ * the set speed, and gaps make it slower. */
 SPEECHWARP_API void speechwarp_set_keep_speed(speechwarp_stream* stream, int enabled);
 SPEECHWARP_API int speechwarp_get_keep_speed(const speechwarp_stream* stream);
 

@@ -33,6 +33,25 @@ channels the shape is `(frames, channels)`.
   cannot work that out by multiplying. Call `stream.reset()` after a seek.
 - A stream is not thread safe.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```python
+stream = speechwarp.Stream(44100, speed=6.5,
+                           pause_cap=0.06,    # shorten every pause to at most 60 ms
+                           speed_floor=0.5,   # no part of the speech slower than half the speed
+                           rhythm_gap=0.04,   # a 40 ms silence...
+                           rhythm_rate=6)     # ...six times a second
+# keep_speed (True by default) holds the overall speed at 6.5x despite all of that.
+# speechwarp.speed_up() takes the same keyword arguments.
+```
+
+`stream.syllable_rate` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is `None` until 10 s have been written.
+
 ## Building it here
 
 From the top of the repository, which is where `pyproject.toml` is:

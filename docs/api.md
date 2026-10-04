@@ -10,6 +10,12 @@ authority; the bindings add only what their language expects, such as exceptions
 | Destroy | `speechwarp_destroy` | `Dispose()` / `using` | automatic | automatic | `close()` / `use { }` | `free()` |
 | Speed | `speechwarp_set_speed`, `_get_speed` | `Speed` | `speed` | `speed` | `speed` | `speed` |
 | Nonlinear amount | `speechwarp_set_nonlinear`, `_get_nonlinear` | `Nonlinear` | `nonlinear` | `nonlinear` | `nonlinear` | `nonlinear` |
+| Pause cap | `speechwarp_set_pause_cap`, `_get_pause_cap` | `PauseCap` | `pause_cap` | `pauseCap` | `pauseCap` | `pauseCap` |
+| Keep overall speed | `speechwarp_set_keep_speed`, `_get_keep_speed` | `KeepSpeed` | `keep_speed` | `keepSpeed` | `keepSpeed` | `keepSpeed` |
+| Speed floor | `speechwarp_set_speed_floor`, `_get_speed_floor` | `SpeedFloor` | `speed_floor` | `speedFloor` | `speedFloor` | `speedFloor` |
+| Rhythm gap | `speechwarp_set_rhythm_gap`, `_get_rhythm_gap` | `RhythmGap` | `rhythm_gap` | `rhythmGap` | `rhythmGap` | `rhythmGap` |
+| Rhythm rate | `speechwarp_set_rhythm_rate`, `_get_rhythm_rate` | `RhythmRate` | `rhythm_rate` | `rhythmRate` | `rhythmRate` | `rhythmRate` |
+| Syllable rate | `speechwarp_syllable_rate` (negative: not yet) | `SyllableRate` (`double?`) | `syllable_rate` (or `None`) | `syllableRate` (`Double?`) | `syllableRate` (`Double?`) | `syllableRate` (or `null`) |
 | Write floats | `speechwarp_write` | `Write(ReadOnlySpan<float>)` | `write(array)` | `write([Float])`, `write(UnsafeBufferPointer<Float>)` | `write(FloatArray, offset, length)` | `write(Float32Array)`, `writePlanar([...])` |
 | Write 16-bit | `speechwarp_write_i16` | `Write(ReadOnlySpan<short>)` | `write(int16 array)` | `write([Int16])` | `write(ShortArray, offset, length)` | - |
 | Read floats | `speechwarp_read` | `Read(Span<float>)` | `read(max_frames=None)` | `read(into:)`, `read(maxFrames:)` | `read(FloatArray, offset, length)` | `read(Float32Array)`, `read(maxFrames?)`, `readPlanar([...])` |
@@ -31,6 +37,12 @@ The same, for the other bindings:
 | Destroy | `close()` | `free()` | automatic (`Drop`) | `Close()` | `close()` / try-with-resources |
 | Speed | `speed` | `speed` | `speed()`, `set_speed` | `Speed()`, `SetSpeed` | `speed()`, `setSpeed` |
 | Nonlinear amount | `nonlinear` | `nonlinear` | `nonlinear()`, `set_nonlinear` | `Nonlinear()`, `SetNonlinear` | `nonlinear()`, `setNonlinear` |
+| Pause cap | `pauseCap` | `pauseCap` | `pause_cap()`, `set_pause_cap` | `PauseCap()`, `SetPauseCap` | `pauseCap()`, `setPauseCap` |
+| Keep overall speed | `keepSpeed` | `keepSpeed` | `keep_speed()`, `set_keep_speed` | `KeepSpeed()`, `SetKeepSpeed` | `keepSpeed()`, `setKeepSpeed` |
+| Speed floor | `speedFloor` | `speedFloor` | `speed_floor()`, `set_speed_floor` | `SpeedFloor()`, `SetSpeedFloor` | `speedFloor()`, `setSpeedFloor` |
+| Rhythm gap | `rhythmGap` | `rhythmGap` | `rhythm_gap()`, `set_rhythm_gap` | `RhythmGap()`, `SetRhythmGap` | `rhythmGap()`, `setRhythmGap` |
+| Rhythm rate | `rhythmRate` | `rhythmRate` | `rhythm_rate()`, `set_rhythm_rate` | `RhythmRate()`, `SetRhythmRate` | `rhythmRate()`, `setRhythmRate` |
+| Syllable rate | `syllableRate` (`double?`) | `syllableRate` (or `null`) | `syllable_rate()` (`Option<f64>`) | `SyllableRate()` (`float64, bool`) | `syllableRate()` (`OptionalDouble`) |
 | Write floats | `write(Float32List)` | `write(Float32Array)` | `write(&[f32])` | `Write([]float32)` | `write(float[], offset, length)` |
 | Write 16-bit | `writeInt16(Int16List)` | - | `write_i16(&[i16])` | `WriteInt16([]int16)` | `write(short[], offset, length)` |
 | Read floats | `read([maxFrames])` | `read(Float32Array)`, `read(maxFrames?)` | `read(&mut [f32])` | `Read([]float32)` | `read(float[], offset, length)` |
@@ -53,6 +65,15 @@ to a few percent.
 **Nonlinear amount.** 0 to 1, clamped. 1 is Speedy, 0 is even speed-up, and values between blend the two
 (upstream has not tested those). Changeable at any time.
 
+**Options for very high speeds.** Pause cap (seconds: 0 off, else 0.01 to 1), keep overall speed (on), speed
+floor (fraction of the speed, 0 to 1), rhythm gap (seconds: 0 off, else 0.005 to 0.2) and rhythm rate (gaps a
+second, 1 to 16, default 5). All but keep overall speed start off. Out-of-range values are clamped. Changeable
+at any time; they apply to audio not yet processed. Reset keeps them. See
+[How it works](how-it-works.md#options-for-very-high-speeds).
+
+**Syllable rate.** Syllables a second in the input over the last 60 s or so, pauses included; nothing until
+10 s have been written since creation or reset. An estimate, typically within about 10%.
+
 **Write.** Interleaved samples; the length must be a whole number of frames. Floats are clipped to -1..1 and
 NaN becomes 0. The output does not depend on how the input is divided between calls.
 
@@ -61,14 +82,17 @@ not ready yet.
 
 **Flush.** Processes everything written, to the last frame. The stream can be written to again afterwards.
 
-**Reset.** Discards buffered input and output and restarts the position from zero; keeps speed and nonlinear
-amount.
+**Reset.** Discards buffered input and output and restarts the position from zero; keeps speed, nonlinear
+amount and the other options, and starts the syllable count again.
 
 **Position.** The input frame, counted from creation or the last reset, that the next output frame to be read
 was made from. Never decreases; approximate to about 0.05 s of input; after a flush and reading everything,
 exactly the number of frames written.
 
 ## Differences between bindings
+
+In every binding that rejects an invalid speed, NaN for any option and a rhythm rate of zero or below are
+rejected the same way; elsewhere they are ignored, as in C.
 
 | | Invalid speed (0, negative, NaN) | Out of memory | Using a closed stream |
 |---|---|---|---|

@@ -29,6 +29,24 @@ The C library is compiled into the crate by its build script, so a C compiler is
 The [guide](../../docs/guide.md) explains these, and [Building a player](../../docs/player.md) covers
 real-time playback.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```rust
+stream.set_speed(6.5);
+stream.set_pause_cap(0.06);   // shorten every pause to at most 60 ms
+stream.set_speed_floor(0.5);  // no part of the speech slower than half the speed
+stream.set_rhythm_gap(0.04);  // a 40 ms silence...
+stream.set_rhythm_rate(6.0);  // ...six times a second
+// keep_speed (true by default) holds the overall speed at 6.5x despite all of that.
+```
+
+`syllable_rate()` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is `None` until 10 s have been written.
+
 ## Building it here
 
 `Cargo.toml` is at the top of the repository, because the crate compiles the C sources there.

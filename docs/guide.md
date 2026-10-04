@@ -79,14 +79,17 @@ seconds of input.
 How close is the average? Within a few percent, and more often a little fast than slow:
 
 - The steering only ever speeds up. Time saved in a long pause is kept, not handed back by slowing the speech
-  after it. A recording with long silences therefore finishes sooner than the number suggests.
+  after it. A recording with long silences therefore finishes sooner than the number suggests. (With the
+  pause cap or rhythm on, keep overall speed changes that: see
+  [How it works](how-it-works.md#options-for-very-high-speeds).)
 - Sonic itself runs up to a few percent fast at high speeds, in both modes.
 
 If you need an exact length, measure the result and adjust, as
 [`examples/blind-ab-test/app.py`](../examples/blind-ab-test/app.py) does. If you need to know where you are
 during playback, do not calculate it from the speed at all: use the position.
 
-Speed and nonlinear can be changed at any time, including during playback, with no gap or click. A new speed
+Speed and nonlinear can be changed at any time, including during playback, with no gap or click. So can the
+options for very high speeds (pause cap, keep overall speed, speed floor and rhythm). A new speed
 is heard after the look-ahead, so within about 0.15 s of input.
 
 ## Position

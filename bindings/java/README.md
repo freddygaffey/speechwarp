@@ -32,6 +32,24 @@ that computer's; CI builds one with Linux, macOS and Windows inside. Java 11 or 
 The [guide](../../docs/guide.md) explains these, and [Building a player](../../docs/player.md) covers
 real-time playback.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```java
+stream.setSpeed(6.5f);
+stream.setPauseCap(0.06f);   // shorten every pause to at most 60 ms
+stream.setSpeedFloor(0.5f);  // no part of the speech slower than half the speed
+stream.setRhythmGap(0.04f);  // a 40 ms silence...
+stream.setRhythmRate(6);     // ...six times a second
+// keepSpeed() (true by default) holds the overall speed at 6.5x despite all of that.
+```
+
+`syllableRate()` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is empty until 10 s have been written.
+
 ## Building it here
 
 Needs a JDK and `cmake` on the path. The native code is the Android binding's, built for this computer.

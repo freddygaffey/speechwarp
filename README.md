@@ -64,6 +64,7 @@ path, and with `NDEBUG` defined: the upstream code is full of assertions.
 ```sh
 build/speechwarp --speed 3 talk.wav talk-3x.wav            # nonlinear
 build/speechwarp --speed 3 --linear talk.wav talk-3x.wav   # even, for comparison
+build/speechwarp --speed 6.5 --pause-cap 0.06 --floor 0.5 -v talk.wav talk-6x.wav
 ```
 
 It reads PCM or 32-bit float WAV and writes 16-bit PCM. `--help` lists the options.
@@ -96,6 +97,10 @@ speechwarp_destroy(s);
   moment, a player cannot work that out by multiplying, so the stream keeps track.
 - **`speechwarp_set_nonlinear(s, 0)`** switches to plain, even Sonic speed-up. It can be changed during
   playback without a gap.
+- **For 5x to 8x** there are options to cap pauses, set a floor under Speedy's speeds and put a regular
+  rhythm of short gaps into the output, while keeping the overall speed. All are off by default; see
+  [How it works](docs/how-it-works.md#options-for-very-high-speeds). `speechwarp_syllable_rate` estimates how
+  many syllables a second are being spoken.
 - A stream is not thread safe. Use it from one thread or lock around it.
 - Only `speechwarp_*` symbols are visible, in the static library too, so it can be linked alongside another
   copy of Sonic or KISS FFT.

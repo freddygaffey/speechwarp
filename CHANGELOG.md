@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+Options for listening at 5x to 8x, all off by default; with them off, the output is the same as 0.1.0's.
+See [How it works](docs/how-it-works.md#options-for-very-high-speeds).
+
+- **Pause cap**: shorten every pause to at most a set length before speeding up.
+- **Keep overall speed** (on by default while the pause cap or rhythm is on): time saved in pauses is spent
+  playing the words slower, and time spent in rhythm gaps is made up, so the overall speed stays as set.
+- **Speed floor**: no part of the speech slower than a set fraction of the speed.
+- **Rhythm**: short silences put into the output at a regular rate, at the quietest point nearby.
+- **Syllable rate**: an estimate of the syllables a second being spoken, ported from the player's C#.
+- All of them in every binding. The command-line tool gains `--pause-cap`, `--floor`, `--rhythm-gap`,
+  `--rhythm-rate` and `--no-keep-speed`, and `--verbose` reports syllables a second; the blind A/B example can
+  compare any two settings.
+
 ## 0.1.0 (unreleased)
 
 The first version.

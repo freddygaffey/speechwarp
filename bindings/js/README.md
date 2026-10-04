@@ -31,6 +31,24 @@ stream.free();
 - Counts are in **frames**, not samples.
 - Call `free()` when done with a stream. A forgotten one is freed when it is garbage collected.
 
+## Very high speeds
+
+For 5x and beyond, a few options take some of the speed from pauses rather than words and give the
+listener a rhythm to follow. All are off by default. What each does, and how they did in a first test, is in
+[How it works](../../docs/how-it-works.md#options-for-very-high-speeds).
+
+```js
+stream.speed = 6.5;
+stream.pauseCap = 0.06;   // shorten every pause to at most 60 ms
+stream.speedFloor = 0.5;  // no part of the speech slower than half the speed
+stream.rhythmGap = 0.04;  // a 40 ms silence...
+stream.rhythmRate = 6;    // ...six times a second
+// keepSpeed (true by default) holds the overall speed at 6.5x despite all of that.
+```
+
+`syllableRate` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
+speed for the rate heard. It is `null` until 10 s have been written.
+
 ## In an AudioWorklet
 
 `loadSync()` gets the library ready without `await`, for the constructor of a processor. The package includes
