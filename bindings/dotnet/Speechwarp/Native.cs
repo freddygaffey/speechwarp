@@ -49,6 +49,39 @@ internal static unsafe partial class Native
     internal static partial float speechwarp_get_nonlinear(StreamHandle stream);
 
     [LibraryImport(Library)]
+    internal static partial void speechwarp_set_pause_cap(StreamHandle stream, float value);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_pause_cap(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_speed_floor(StreamHandle stream, float value);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_speed_floor(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_rhythm_gap(StreamHandle stream, float value);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_rhythm_gap(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_rhythm_rate(StreamHandle stream, float value);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_rhythm_rate(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_keep_speed(StreamHandle stream, int enabled);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_get_keep_speed(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_syllable_rate(StreamHandle stream);
+
+    [LibraryImport(Library)]
     internal static partial int speechwarp_write(StreamHandle stream, float* samples, int frames);
 
     [LibraryImport(Library)]

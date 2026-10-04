@@ -60,6 +60,37 @@ static PyObject* native_get_nonlinear(PyObject* self, PyObject* capsule) {
   return stream ? PyFloat_FromDouble(speechwarp_get_nonlinear(stream)) : NULL;
 }
 
+/* The options for very high speeds, which all take and give one number. */
+#define OPTION(name, type, from_python, to_python)                                                       \
+  static PyObject* native_set_##name(PyObject* self, PyObject* args) {                                   \
+    PyObject* capsule;                                                                                    \
+    type value;                                                                                           \
+    speechwarp_stream* stream;                                                                            \
+    (void)self;                                                                                           \
+    if (!PyArg_ParseTuple(args, "O" from_python, &capsule, &value) || !(stream = stream_of(capsule))) {   \
+      return NULL;                                                                                        \
+    }                                                                                                     \
+    speechwarp_set_##name(stream, value);                                                                 \
+    Py_RETURN_NONE;                                                                                       \
+  }                                                                                                       \
+  static PyObject* native_get_##name(PyObject* self, PyObject* capsule) {                                \
+    speechwarp_stream* stream = stream_of(capsule);                                                       \
+    (void)self;                                                                                           \
+    return stream ? to_python(speechwarp_get_##name(stream)) : NULL;                                      \
+  }
+
+OPTION(pause_cap, float, "f", PyFloat_FromDouble)
+OPTION(keep_speed, int, "p", PyBool_FromLong)
+OPTION(speed_floor, float, "f", PyFloat_FromDouble)
+OPTION(rhythm_gap, float, "f", PyFloat_FromDouble)
+OPTION(rhythm_rate, float, "f", PyFloat_FromDouble)
+
+static PyObject* native_syllable_rate(PyObject* self, PyObject* capsule) {
+  speechwarp_stream* stream = stream_of(capsule);
+  (void)self;
+  return stream ? PyFloat_FromDouble(speechwarp_syllable_rate(stream)) : NULL;
+}
+
 static PyObject* native_available(PyObject* self, PyObject* capsule) {
   speechwarp_stream* stream = stream_of(capsule);
   (void)self;
@@ -147,6 +178,17 @@ static PyMethodDef methods[] = {
     {"get_speed", native_get_speed, METH_O, NULL},
     {"set_nonlinear", native_set_nonlinear, METH_VARARGS, NULL},
     {"get_nonlinear", native_get_nonlinear, METH_O, NULL},
+    {"set_pause_cap", native_set_pause_cap, METH_VARARGS, NULL},
+    {"get_pause_cap", native_get_pause_cap, METH_O, NULL},
+    {"set_keep_speed", native_set_keep_speed, METH_VARARGS, NULL},
+    {"get_keep_speed", native_get_keep_speed, METH_O, NULL},
+    {"set_speed_floor", native_set_speed_floor, METH_VARARGS, NULL},
+    {"get_speed_floor", native_get_speed_floor, METH_O, NULL},
+    {"set_rhythm_gap", native_set_rhythm_gap, METH_VARARGS, NULL},
+    {"get_rhythm_gap", native_get_rhythm_gap, METH_O, NULL},
+    {"set_rhythm_rate", native_set_rhythm_rate, METH_VARARGS, NULL},
+    {"get_rhythm_rate", native_get_rhythm_rate, METH_O, NULL},
+    {"syllable_rate", native_syllable_rate, METH_O, NULL},
     {"available", native_available, METH_O, NULL},
     {"position", native_position, METH_O, NULL},
     {"reset", native_reset, METH_O, NULL},

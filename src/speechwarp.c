@@ -499,12 +499,6 @@ static float correct_speed(speechwarp_stream* s, float speed) {
   if (corrected > SONIC_MAX_SPEED) corrected = SONIC_MAX_SPEED;
 
   s->excess += (double)s->block / s->sample_rate * (1.0 / corrected - 1.0 / target);
-  if (keeping_speed(s) && s->rhythm_gap > 0) {
-    /* The gaps that will go into this block's output: counted here rather than when they are put in, which
-     * depends on when the output is read. */
-    double share = gap_share(s, NULL);
-    s->excess += (double)s->block / s->sample_rate / corrected * share / (1 - share);
-  }
   limit_excess(s);
   return (float)corrected;
 }
@@ -521,7 +515,12 @@ static int64_t source_frame(speechwarp_stream* s, int64_t released) {
   return released + s->skipped;
 }
 
-/* Give the first `frames` held frames to Sonic. A `speed` of 0 keeps Sonic's current speed. */
+static int rhythm_fill(speechwarp_stream* s);
+
+/* Give the first `frames` held frames to Sonic. A `speed` of 0 keeps Sonic's current speed.
+ *
+ * Rhythm takes Sonic's output here, block by block, rather than when it is read: gaps change the speed
+ * correction, and this way they do so at the same point whatever the timing of the reads. */
 static int release(speechwarp_stream* s, int frames, float speed) {
   if (speed > 0) {
     sonicSetSpeed(s->sonic, speed);
@@ -533,7 +532,7 @@ static int release(speechwarp_stream* s, int frames, float speed) {
   s->hold_frames -= frames;
   s->frames_released += frames;
   add_mark(s, source_frame(s, s->frames_released));
-  return 1;
+  return rhythm_fill(s);
 }
 
 /* Analyse the window that starts `blocks_ahead` blocks into the hold buffer. */
@@ -781,6 +780,10 @@ static int add_gap(speechwarp_stream* s, int frames) {
   s->gaps[s->gaps_count].frames = frames;
   s->gaps_count++;
   s->since_gap = 0;
+  if (keeping_speed(s)) {
+    s->excess += (double)frames / s->sample_rate;
+    limit_excess(s);
+  }
   return 1;
 }
 
@@ -1137,7 +1140,7 @@ static int write_frames(speechwarp_stream* s, const float* floats, const int16_t
       return 0;
     }
   }
-  return rhythm_fill(s);
+  return 1;
 }
 
 int speechwarp_write(speechwarp_stream* stream, const float* samples, int frames) {
@@ -1178,7 +1181,6 @@ static int read_frames(speechwarp_stream* s, float* floats, int16_t* ints, int m
   if (!s || !s->sonic || (!floats && !ints) || max_frames <= 0) {
     return 0;
   }
-  rhythm_fill(s);
   if (s->ready_frames > 0) {
     int n = s->ready_frames < max_frames ? s->ready_frames : max_frames;
     const float* from = s->ready + (size_t)s->ready_offset * s->channels;

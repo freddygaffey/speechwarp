@@ -118,3 +118,34 @@ def test_reset():
     stream.write(samples)
     stream.flush()
     assert np.array_equal(stream.read(), speechwarp.speed_up(samples, RATE, 3))
+
+
+def test_high_speed_options():
+    stream = speechwarp.Stream(RATE)
+    assert (stream.pause_cap, stream.keep_speed, stream.speed_floor, stream.rhythm_gap) == (0, True, 0, 0)
+    assert stream.rhythm_rate == 5
+    assert stream.syllable_rate is None
+    stream = speechwarp.Stream(RATE, pause_cap=5, keep_speed=False, speed_floor=0.5, rhythm_gap=0.04, rhythm_rate=100)
+    assert stream.pause_cap == 1 and stream.keep_speed is False and stream.speed_floor == 0.5
+    assert stream.rhythm_gap == pytest.approx(0.04) and stream.rhythm_rate == 16
+    with pytest.raises(ValueError):
+        stream.pause_cap = float("nan")
+    with pytest.raises(ValueError):
+        stream.rhythm_rate = 0
+
+
+def test_pause_cap_shortens_and_position_reaches_the_end():
+    samples = signal(10)
+    stream = speechwarp.Stream(RATE, nonlinear=0, pause_cap=0.03, keep_speed=False)
+    stream.write(samples)
+    stream.flush()
+    out = stream.read()
+    assert len(out) < 0.9 * len(samples)
+    assert stream.position == len(samples)
+    assert stream.syllable_rate is not None
+
+
+def test_speed_up_takes_options():
+    samples = signal(30)  # long enough for the speed correction to settle
+    kept = speechwarp.speed_up(samples, RATE, 3, rhythm_gap=0.04)
+    assert abs(len(kept) / (len(samples) / 3) - 1) < 0.05

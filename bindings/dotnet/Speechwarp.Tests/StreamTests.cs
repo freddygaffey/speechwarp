@@ -189,4 +189,50 @@ public class StreamTests
         Assert.ThrowsExactly<ObjectDisposedException>(() => stream.Speed = 2);
         Assert.ThrowsExactly<ObjectDisposedException>(() => stream.Write(new float[10]));
     }
+    [TestMethod]
+    public void HighSpeedOptionsStartOffAndClamp()
+    {
+        using var stream = new SpeechwarpStream(Rate, 1);
+        Assert.AreEqual(0f, stream.PauseCap);
+        Assert.IsTrue(stream.KeepSpeed);
+        Assert.AreEqual(0f, stream.SpeedFloor);
+        Assert.AreEqual(0f, stream.RhythmGap);
+        Assert.AreEqual(5f, stream.RhythmRate);
+        Assert.IsNull(stream.SyllableRate);
+
+        stream.PauseCap = 5;
+        stream.SpeedFloor = 0.5f;
+        stream.RhythmGap = 0.04f;
+        stream.RhythmRate = 100;
+        stream.KeepSpeed = false;
+        Assert.AreEqual(1f, stream.PauseCap);
+        Assert.AreEqual(0.5f, stream.SpeedFloor);
+        Assert.AreEqual(0.04f, stream.RhythmGap, 1e-6f);
+        Assert.AreEqual(16f, stream.RhythmRate);
+        Assert.IsFalse(stream.KeepSpeed);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => stream.PauseCap = float.NaN);
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => stream.RhythmRate = 0);
+    }
+
+    [TestMethod]
+    public void PauseCapShortensPausesAndPositionStillReachesTheEnd()
+    {
+        float[] input = Signal(10); // 0.1 s gaps every 0.4 s
+        using var stream = new SpeechwarpStream(Rate, 1) { Nonlinear = 0, PauseCap = 0.03f, KeepSpeed = false };
+        stream.Write(input);
+        stream.Flush();
+        float[] output = ReadAll(stream);
+        Assert.IsLessThan(input.Length * 0.9, output.Length);
+        Assert.AreEqual(input.Length, stream.Position);
+    }
+
+    [TestMethod]
+    public void SyllableRateAppearsAfterTenSeconds()
+    {
+        using var stream = new SpeechwarpStream(Rate, 1) { RhythmGap = 0.04f };
+        stream.Write(Signal(12)); // a burst every 0.4 s: 2.5 a second
+        Assert.AreEqual(2.5, stream.SyllableRate!.Value, 0.5);
+        stream.Reset();
+        Assert.IsNull(stream.SyllableRate);
+    }
 }

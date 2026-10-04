@@ -86,6 +86,84 @@ public sealed unsafe class SpeechwarpStream : IDisposable
         }
     }
 
+    /// <summary>
+    /// Pause cap, in seconds of input: every pause is shortened to at most this before speeding up, so that the
+    /// speed is spent on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1; other
+    /// values are clamped. <see cref="Position"/> counts the frames left out.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a number.</exception>
+    public float PauseCap
+    {
+        get => Native.speechwarp_get_pause_cap(_handle);
+        set => Native.speechwarp_set_pause_cap(_handle, NotNaN(value));
+    }
+
+    /// <summary>
+    /// Keep the overall speed while <see cref="PauseCap"/> or <see cref="RhythmGap"/> is on: time saved in pauses
+    /// is spent playing the words slower, and time spent in gaps is made up by playing them faster, never below
+    /// 1x. True by default. When false, trimmed pauses make playback faster than <see cref="Speed"/>.
+    /// </summary>
+    public bool KeepSpeed
+    {
+        get => Native.speechwarp_get_keep_speed(_handle) != 0;
+        set => Native.speechwarp_set_keep_speed(_handle, value ? 1 : 0);
+    }
+
+    /// <summary>
+    /// Speed floor, as a fraction of <see cref="Speed"/>: no 10 ms block of speech plays slower than this times
+    /// the speed, so at 8x a floor of 0.5 keeps every block at 4x or more. 0 (the default) is off; 1 is the same
+    /// as linear. Sensible: 0.3 to 0.7. Clamped to 0..1. Applies only with nonlinear speed-up above 1x.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a number.</exception>
+    public float SpeedFloor
+    {
+        get => Native.speechwarp_get_speed_floor(_handle);
+        set => Native.speechwarp_set_speed_floor(_handle, NotNaN(value));
+    }
+
+    /// <summary>
+    /// Rhythm gap, in seconds: a short silence put into the output <see cref="RhythmRate"/> times a second, at the
+    /// quietest point nearby, which can help the listener keep up at very high speeds. 0 (the default) is off.
+    /// Sensible: 0.02 to 0.06. Allowed: 0, or 0.005 to 0.2; other values are clamped. <see cref="Position"/> holds
+    /// still during a gap. Adds about 0.1 s of latency.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a number.</exception>
+    public float RhythmGap
+    {
+        get => Native.speechwarp_get_rhythm_gap(_handle);
+        set => Native.speechwarp_set_rhythm_gap(_handle, NotNaN(value));
+    }
+
+    /// <summary>Rhythm gaps a second of output, 1 to 16 (clamped); default 5. Sensible: 4 to 8.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is zero, negative or not a number.</exception>
+    public float RhythmRate
+    {
+        get => Native.speechwarp_get_rhythm_rate(_handle);
+        set
+        {
+            if (!(value > 0))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Must be greater than zero.");
+            Native.speechwarp_set_rhythm_rate(_handle, value);
+        }
+    }
+
+    /// <summary>
+    /// Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
+    /// been written since creation or <see cref="Reset"/>. Multiply by the speed for the rate heard. An estimate,
+    /// typically within about 10%.
+    /// </summary>
+    public double? SyllableRate
+    {
+        get
+        {
+            var rate = Native.speechwarp_syllable_rate(_handle);
+            return rate < 0 ? null : rate;
+        }
+    }
+
+    private static float NotNaN(float value) =>
+        float.IsNaN(value) ? throw new ArgumentOutOfRangeException(nameof(value), value, "Must be a number.") : value;
+
     /// <summary>Frames of output ready to read.</summary>
     public int FramesAvailable => Native.speechwarp_available(_handle);
 
