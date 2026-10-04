@@ -1,13 +1,20 @@
-"""Blind A/B listening test: even speed-up vs Speedy (nonlinear). See README.md in this folder.
+"""Blind A/B listening test between two speed-up settings. See README.md in this folder.
 
-One book excerpt plays as a continuous stream. A and B are the two methods, in hidden random order; toggling
-switches method mid-stream and carries on from the same place in the book. Both are rendered to the same
-length, so equal playback time means equal book position. The speed slider is the true overall speed.
+One book excerpt plays as a continuous stream. A and B are the two settings, in hidden random order; toggling
+switches mid-stream and carries on from the same place in the book. Both are rendered to the same length, so
+equal playback time means equal book position. The speed slider is the true overall speed.
+
+    python app.py                       # even speed-up against Speedy
+    python app.py speedy pause-cap      # any two of the settings in METHODS
+    python app.py --method mine="--pause-cap 0.1 --floor 0.3" speedy mine
 """
+import argparse
+import hashlib
 import json
 import os
 import random
 import secrets
+import shlex
 import subprocess
 import time
 import wave
@@ -24,6 +31,17 @@ VOTES = HERE / "votes.jsonl"
 # The speechwarp command-line tool does the rendering; see README.md for how to build it.
 SPEECHWARP = Path(os.environ.get("SPEECHWARP", HERE / "../../build/speechwarp"))
 
+# Settings that can be compared: a name and the speechwarp options that make it.
+METHODS = {
+    "even": ["--linear"],
+    "speedy": [],
+    "pause-cap": ["--pause-cap", "0.06"],
+    "pause-cap-floor": ["--pause-cap", "0.06", "--floor", "0.5"],
+    "pause-cap-floor-rhythm": ["--pause-cap", "0.06", "--floor", "0.5", "--rhythm-gap", "0.04",
+                               "--rhythm-rate", "6"],
+}
+COMPARED = ["even", "speedy"]  # replaced from the command line
+
 app = Flask(__name__)
 clips = {}     # clip token -> wav path
 sessions = {}  # session token -> {"source", "a": method, "b": method}
@@ -34,36 +52,32 @@ def duration(path):
         return w.getnframes() / w.getframerate()
 
 
-def run_speechwarp(src, out, speed, nonlinear):
-    args = [str(SPEECHWARP), "--speed", f"{speed:.4f}", str(src), str(out)]
-    if not nonlinear:
-        args.insert(1, "--linear")
+def run_speechwarp(src, out, speed, method):
+    args = [str(SPEECHWARP), "--speed", f"{speed:.4f}", *METHODS[method], str(src), str(out)]
     subprocess.run(args, check=True, capture_output=True)
 
 
+def render_to(src, out, method, seconds):
+    """Render `src` with `method`, adjusting the speed asked for until the result lasts `seconds`."""
+    nominal = duration(src) / seconds
+    for _ in range(5):
+        run_speechwarp(src, out, nominal, method)
+        if abs(duration(out) - seconds) / seconds < 0.005:
+            break
+        nominal = min(20, nominal * duration(out) / seconds)
+
+
 def render(src, speed):
-    """Both methods at a true overall speed of `speed`, equal in length. Returns {"even": path, "speedy": path}."""
-    speedy_out = CACHE / f"{src.stem}-{speed:g}-speedy.wav"
-    even_out = CACHE / f"{src.stem}-{speed:g}-even.wav"
-    if not (speedy_out.exists() and even_out.exists()):
-        # Neither method lands exactly on the speed asked for, and equal length is what keeps the test
-        # blind. Adjust the request until the nonlinear version is the length wanted, then match the even
-        # version to it.
-        nominal = speed
-        for _ in range(3):
-            run_speechwarp(src, speedy_out, nominal, nonlinear=True)
-            actual = duration(src) / duration(speedy_out)
-            if abs(actual - speed) / speed < 0.01:
-                break
-            nominal *= speed / actual
-        target = duration(speedy_out)
-        nominal = duration(src) / target
-        for _ in range(5):
-            run_speechwarp(src, even_out, nominal, nonlinear=False)
-            if abs(duration(even_out) - target) / target < 0.005:
-                break
-            nominal *= duration(even_out) / target
-    return {"even": even_out, "speedy": speedy_out}
+    """Both compared settings at a true overall speed of `speed`, equal in length. Returns {method: path}."""
+    def name(method):  # the options are in the name, so redefining a setting renders it again
+        options = hashlib.sha1(" ".join(METHODS[method]).encode()).hexdigest()[:8]
+        return CACHE / f"{src.stem}-{speed:g}-{method}-{options}.wav"
+    paths = {m: name(m) for m in COMPARED}
+    # No setting lands exactly on the speed asked for, and equal length is what keeps the test blind.
+    for method, path in paths.items():
+        if not path.exists():
+            render_to(src, path, method, duration(src) / speed)
+    return paths
 
 
 def load_votes():
@@ -88,7 +102,7 @@ def new_session():
     speed = float(request.args["speed"])
     previous = request.args.get("previous")
     src = random.choice([s for s in SRC if s.stem != previous])
-    methods = random.sample(["even", "speedy"], 2)
+    methods = random.sample(COMPARED, 2)
     token = secrets.token_urlsafe(12)
     sessions[token] = {"source": src.stem, "a": methods[0], "b": methods[1]}
     return jsonify(session=token, source=src.stem, **clip_urls(sessions[token], speed))
@@ -117,6 +131,7 @@ def vote():
     with VOTES.open("a") as f:
         f.write(json.dumps({"source": session["source"], "speed": data["speed"],
                             "preferred": session[choice] if choice in ("a", "b") else "same",
+                            "compared": sorted(COMPARED),
                             "time": time.time()}) + "\n")
     return jsonify(votes=len(load_votes()))
 
@@ -125,16 +140,19 @@ def vote():
 def results():
     table = defaultdict(lambda: defaultdict(int))
     for v in load_votes():
-        table[v["speed"]][v["preferred"]] += 1
+        if v.get("compared", ["even", "speedy"]) == sorted(COMPARED):
+            table[v["speed"]][v["preferred"]] += 1
     rows = "".join(
-        f"<tr><td>{speed:g}x</td><td>{c['even']}</td><td>{c['speedy']}</td><td>{c['same']}</td></tr>"
+        f"<tr><td>{speed:g}x</td>" + "".join(f"<td>{c[m]}</td>" for m in COMPARED) + f"<td>{c['same']}</td></tr>"
         for speed, c in sorted(table.items()))
+    heads = "".join(f"<th>{m}</th>" for m in COMPARED)
     return f"""<!doctype html><title>Results</title>
 <style>body{{font:16px system-ui;margin:40px;background:#1d1a2e;color:#efe7d6}}td,th{{padding:8px 18px;text-align:left}}
 table{{border-collapse:collapse;margin-bottom:24px}}tr{{border-bottom:1px solid #444}}a{{color:#f0b25a}}</style>
-<h2>Which method you preferred</h2>
-<table><tr><th>Speed</th><th>Even speed-up</th><th>Speedy</th><th>No difference</th></tr>{rows}</table>
-<p>{len(load_votes())} votes. Speed is the true overall speed of both versions.</p>
+<h2>Which setting you preferred</h2>
+<table><tr><th>Speed</th>{heads}<th>No difference</th></tr>{rows}</table>
+<p>{sum(sum(c.values()) for c in table.values())} votes between these two settings. Speed is the true overall
+speed of both versions.</p>
 <p><a href="/">Back to the test</a></p>"""
 
 
@@ -293,6 +311,19 @@ document.addEventListener('keyup', e => { if (e.key === ' ') e.preventDefault();
 </script>"""
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Blind A/B test between two speed-up settings.")
+    parser.add_argument("settings", nargs="*", default=COMPARED,
+                        help=f"the two settings to compare (default: even speedy). Known: {', '.join(METHODS)}")
+    parser.add_argument("--method", action="append", default=[], metavar='NAME="OPTIONS"',
+                        help="define a setting from speechwarp options, e.g. mine=\"--pause-cap 0.1\"")
+    options = parser.parse_args()
+    for definition in options.method:
+        name, _, flags = definition.partition("=")
+        METHODS[name] = shlex.split(flags)
+    if len(options.settings) != 2 or options.settings[0] == options.settings[1] or \
+            any(m not in METHODS for m in options.settings):
+        raise SystemExit(f"Name two different settings from: {', '.join(METHODS)}")
+    COMPARED[:] = options.settings
     if len(SRC) < 2:
         raise SystemExit(f"Put at least two 16-bit PCM WAV files of speech in {HERE / 'src'} (see README.md).")
     if not SPEECHWARP.exists():

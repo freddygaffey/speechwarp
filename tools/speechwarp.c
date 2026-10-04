@@ -30,7 +30,15 @@ static void usage(FILE* to) {
           "  -s, --speed N      how many times faster, %g to %g (default 2)\n"
           "  -l, --linear       speed everything up evenly (the same as --nonlinear 0)\n"
           "  -n, --nonlinear A  how unevenly to speed up, 0 to 1 (default 1)\n"
-          "  -v, --verbose      report the lengths and the speed achieved\n"
+          "\n"
+          "  for very high speeds (all off by default):\n"
+          "  --pause-cap S      shorten every pause to at most S seconds, e.g. 0.06\n"
+          "  --floor F          no speech slower than F times the speed, 0 to 1, e.g. 0.5\n"
+          "  --rhythm-gap S     put an S-second silence in the output at a regular rate, e.g. 0.04\n"
+          "  --rhythm-rate N    gaps a second (default 5)\n"
+          "  --no-keep-speed    let trimmed pauses and gaps change the overall speed\n"
+          "\n"
+          "  -v, --verbose      report the lengths, the speed achieved and the syllables a second\n"
           "  -V, --version      print the version\n"
           "  -h, --help         print this\n",
           (double)SPEECHWARP_MIN_SPEED, (double)SPEECHWARP_MAX_SPEED);
@@ -179,7 +187,8 @@ int main(int argc, char** argv) {
   static float in[CHUNK_FRAMES * 32];
   const char* paths[2];
   const char* error;
-  double speed = 2, nonlinear = 1;
+  double speed = 2, nonlinear = 1, pause_cap = 0, speed_floor = 0, rhythm_gap = 0, rhythm_rate = 5;
+  int keep_speed = 1;
   int path_count = 0, verbose = 0, i, frames;
   long frames_in = 0, frames_out = 0, written;
   speechwarp_stream* stream;
@@ -203,6 +212,16 @@ int main(int argc, char** argv) {
       speed = atof(argv[++i]);
     } else if ((!strcmp(arg, "-n") || !strcmp(arg, "--nonlinear")) && has_value) {
       nonlinear = atof(argv[++i]);
+    } else if (!strcmp(arg, "--pause-cap") && has_value) {
+      pause_cap = atof(argv[++i]);
+    } else if (!strcmp(arg, "--floor") && has_value) {
+      speed_floor = atof(argv[++i]);
+    } else if (!strcmp(arg, "--rhythm-gap") && has_value) {
+      rhythm_gap = atof(argv[++i]);
+    } else if (!strcmp(arg, "--rhythm-rate") && has_value) {
+      rhythm_rate = atof(argv[++i]);
+    } else if (!strcmp(arg, "--no-keep-speed")) {
+      keep_speed = 0;
     } else if (arg[0] == '-' && arg[1] != '\0') {
       fprintf(stderr, "speechwarp: unknown or incomplete option %s\n\n", arg);
       usage(stderr);
@@ -227,6 +246,13 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  if (!(pause_cap >= 0 && pause_cap <= 1) || !(speed_floor >= 0 && speed_floor <= 1) ||
+      !(rhythm_gap >= 0 && rhythm_gap <= 0.2) || !(rhythm_rate >= 1 && rhythm_rate <= 16)) {
+    fprintf(stderr, "speechwarp: --pause-cap must be 0 to 1, --floor 0 to 1, --rhythm-gap 0 to 0.2 and "
+                    "--rhythm-rate 1 to 16\n");
+    return 2;
+  }
+
   memset(&wav, 0, sizeof wav);
   error = open_wav(&wav, paths[0]);
   if (error) {
@@ -241,6 +267,11 @@ int main(int argc, char** argv) {
   }
   speechwarp_set_speed(stream, (float)speed);
   speechwarp_set_nonlinear(stream, (float)nonlinear);
+  speechwarp_set_pause_cap(stream, (float)pause_cap);
+  speechwarp_set_speed_floor(stream, (float)speed_floor);
+  speechwarp_set_rhythm_gap(stream, (float)rhythm_gap);
+  speechwarp_set_rhythm_rate(stream, (float)rhythm_rate);
+  speechwarp_set_keep_speed(stream, keep_speed);
 
   out = fopen(paths[1], "wb");
   if (!out) {
@@ -270,8 +301,14 @@ int main(int argc, char** argv) {
         break;
       }
       if (verbose) {
-        fprintf(stderr, "%.2f s in, %.2f s out, %.2fx\n", (double)frames_in / wav.sample_rate,
-                (double)frames_out / wav.sample_rate, frames_out ? (double)frames_in / frames_out : 0.0);
+        double achieved = frames_out ? (double)frames_in / frames_out : 0.0;
+        double syllables = speechwarp_syllable_rate(stream);
+        fprintf(stderr, "%.2f s in, %.2f s out, %.2fx", (double)frames_in / wav.sample_rate,
+                (double)frames_out / wav.sample_rate, achieved);
+        if (syllables >= 0) {
+          fprintf(stderr, ", %.1f syllables a second in, %.1f heard", syllables, syllables * achieved);
+        }
+        fprintf(stderr, "\n");
       }
       speechwarp_destroy(stream);
       fclose(wav.file);
