@@ -126,7 +126,7 @@ static double largest_step(const recording* r) {
 
 static void test_settings(void) {
   speechwarp_stream* s = speechwarp_create(RATE, 1);
-  float nan = (float)(0.0 / 0.0);
+  float nan = (float)NAN;
 
   CHECK(speechwarp_get_pause_cap(s) == 0);
   CHECK(speechwarp_get_keep_speed(s) == 1);

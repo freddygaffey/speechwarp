@@ -752,6 +752,9 @@ static int rhythm_in_use(const speechwarp_stream* s) { return s->rhythm_gap > 0 
 /* Move the first `frames` pending frames to `ready`. */
 static int move_to_ready(speechwarp_stream* s, int frames) {
   size_t samples = (size_t)frames * s->channels;
+  if (frames <= 0) {
+    return 1; /* and the buffers may not exist yet */
+  }
   if (s->ready_offset > 0 && s->ready_offset + s->ready_frames + frames > s->ready_capacity) {
     memmove(s->ready, s->ready + (size_t)s->ready_offset * s->channels,
             (size_t)s->ready_frames * s->channels * sizeof(float));
