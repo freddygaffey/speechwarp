@@ -6,6 +6,7 @@
 | [Building a player](player.md) | play audio in real time: the pull loop, seeking, the progress bar, latency, threads |
 | [API reference](api.md) | look up a function, with its name in each language |
 | [How it works](how-it-works.md) | know what the algorithm does to the audio, and how this library differs from upstream |
+| [Research: 5x to 8x](research-high-speed.md) | see what is known about listening at very high speeds and training for it, and the improvements proposed |
 | [Examples](../examples/) | start from code that runs |
 | [Contributing](../CONTRIBUTING.md) | build, test or change the library and its bindings |
 
