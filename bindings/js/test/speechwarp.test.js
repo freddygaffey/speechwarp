@@ -154,3 +154,35 @@ test("a long recording makes the memory grow without harm", () => {
   const output = speedUp(input, 2);
   assert.ok(Math.abs(input.length / output.length / 2 - 1) < 0.1);
 });
+
+test("the options for high speeds start off and are clamped", () => {
+  const stream = speechwarp.createStream(RATE);
+  assert.deepEqual(
+    [stream.pauseCap, stream.keepSpeed, stream.speedFloor, stream.rhythmGap, stream.rhythmRate, stream.syllableRate],
+    [0, true, 0, 0, 5, null],
+  );
+  stream.pauseCap = 5;
+  stream.speedFloor = 0.5;
+  stream.rhythmGap = 0.04;
+  stream.rhythmRate = 100;
+  stream.keepSpeed = false;
+  assert.deepEqual([stream.pauseCap, stream.speedFloor, stream.rhythmRate, stream.keepSpeed], [1, 0.5, 16, false]);
+  assert.ok(Math.abs(stream.rhythmGap - 0.04) < 1e-6);
+  assert.throws(() => (stream.pauseCap = NaN), RangeError);
+  assert.throws(() => (stream.rhythmRate = 0), RangeError);
+  stream.free();
+});
+
+test("the pause cap shortens pauses and position still reaches the end", () => {
+  const input = signal(12);
+  const stream = speechwarp.createStream(RATE);
+  stream.nonlinear = 0;
+  stream.pauseCap = 0.03;
+  stream.keepSpeed = false;
+  stream.write(input);
+  stream.flush();
+  assert.ok(stream.read().length < input.length * 0.9);
+  assert.equal(stream.position, input.length);
+  assert.ok(stream.syllableRate > 0);
+  stream.free();
+});

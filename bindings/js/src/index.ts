@@ -29,12 +29,28 @@ interface Exports {
   speechwarp_get_speed(stream: number): number;
   speechwarp_set_nonlinear(stream: number, amount: number): void;
   speechwarp_get_nonlinear(stream: number): number;
+  speechwarp_set_pause_cap(stream: number, seconds: number): void;
+  speechwarp_get_pause_cap(stream: number): number;
+  speechwarp_set_keep_speed(stream: number, enabled: number): void;
+  speechwarp_get_keep_speed(stream: number): number;
+  speechwarp_set_speed_floor(stream: number, fraction: number): void;
+  speechwarp_get_speed_floor(stream: number): number;
+  speechwarp_set_rhythm_gap(stream: number, seconds: number): void;
+  speechwarp_get_rhythm_gap(stream: number): number;
+  speechwarp_set_rhythm_rate(stream: number, perSecond: number): void;
+  speechwarp_get_rhythm_rate(stream: number): number;
+  speechwarp_syllable_rate(stream: number): number;
   speechwarp_write(stream: number, samples: number, frames: number): number;
   speechwarp_read(stream: number, samples: number, maxFrames: number): number;
   speechwarp_available(stream: number): number;
   speechwarp_flush(stream: number): number;
   speechwarp_reset(stream: number): void;
   speechwarp_position(stream: number): bigint;
+}
+
+function number(name: string, value: number): number {
+  if (Number.isNaN(value)) throw new RangeError(`${name} must be a number`);
+  return value;
 }
 
 /** atob does not exist in an AudioWorklet, so this does without it. */
@@ -180,6 +196,81 @@ export class Stream {
   set nonlinear(value: number) {
     if (Number.isNaN(value)) throw new RangeError("nonlinear must be a number");
     this.exports.speechwarp_set_nonlinear(this.open(), value);
+  }
+
+  // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped. See
+  // docs/how-it-works.md.
+
+  /**
+   * Shorten every pause to at most this many seconds of input before speeding up, so that the speed is spent
+   * on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. `position` counts the
+   * frames left out.
+   */
+  get pauseCap(): number {
+    return this.exports.speechwarp_get_pause_cap(this.open());
+  }
+
+  set pauseCap(value: number) {
+    this.exports.speechwarp_set_pause_cap(this.open(), number("pauseCap", value));
+  }
+
+  /**
+   * While the pause cap or rhythm is on, keep the overall speed (true, the default): time saved in pauses is
+   * spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them faster.
+   * When false, trimmed pauses make playback faster than `speed`.
+   */
+  get keepSpeed(): boolean {
+    return this.exports.speechwarp_get_keep_speed(this.open()) !== 0;
+  }
+
+  set keepSpeed(value: boolean) {
+    this.exports.speechwarp_set_keep_speed(this.open(), value ? 1 : 0);
+  }
+
+  /**
+   * No 10 ms block of speech plays slower than this fraction of `speed`: at 8x, 0.5 keeps every block at 4x
+   * or more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with
+   * nonlinear speed-up above 1x.
+   */
+  get speedFloor(): number {
+    return this.exports.speechwarp_get_speed_floor(this.open());
+  }
+
+  set speedFloor(value: number) {
+    this.exports.speechwarp_set_speed_floor(this.open(), number("speedFloor", value));
+  }
+
+  /**
+   * Seconds of silence put into the output `rhythmRate` times a second, at the quietest point nearby, which
+   * can help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02 to 0.06.
+   * Allowed: 0, or 0.005 to 0.2. `position` holds still during a gap.
+   */
+  get rhythmGap(): number {
+    return this.exports.speechwarp_get_rhythm_gap(this.open());
+  }
+
+  set rhythmGap(value: number) {
+    this.exports.speechwarp_set_rhythm_gap(this.open(), number("rhythmGap", value));
+  }
+
+  /** Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. */
+  get rhythmRate(): number {
+    return this.exports.speechwarp_get_rhythm_rate(this.open());
+  }
+
+  set rhythmRate(value: number) {
+    if (!(value > 0)) throw new RangeError(`rhythmRate must be greater than zero, not ${value}`);
+    this.exports.speechwarp_set_rhythm_rate(this.open(), value);
+  }
+
+  /**
+   * Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
+   * been written since creation or `reset`. Multiply by the speed for the rate heard. An estimate, typically
+   * within about 10%.
+   */
+  get syllableRate(): number | null {
+    const rate = this.exports.speechwarp_syllable_rate(this.open());
+    return rate < 0 ? null : rate;
   }
 
   /** Frames of output ready to read. */
