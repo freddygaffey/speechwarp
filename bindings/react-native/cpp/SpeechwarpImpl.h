@@ -23,6 +23,17 @@ public:
   double getSpeed(jsi::Runtime& rt, double handle);
   void setNonlinear(jsi::Runtime& rt, double handle, double amount);
   double getNonlinear(jsi::Runtime& rt, double handle);
+  void setPauseCap(jsi::Runtime& rt, double handle, double value);
+  double getPauseCap(jsi::Runtime& rt, double handle);
+  void setSpeedFloor(jsi::Runtime& rt, double handle, double value);
+  double getSpeedFloor(jsi::Runtime& rt, double handle);
+  void setRhythmGap(jsi::Runtime& rt, double handle, double value);
+  double getRhythmGap(jsi::Runtime& rt, double handle);
+  void setRhythmRate(jsi::Runtime& rt, double handle, double value);
+  double getRhythmRate(jsi::Runtime& rt, double handle);
+  void setKeepSpeed(jsi::Runtime& rt, double handle, bool enabled);
+  bool getKeepSpeed(jsi::Runtime& rt, double handle);
+  double syllableRate(jsi::Runtime& rt, double handle);
   bool write(jsi::Runtime& rt, double handle, jsi::Object buffer, double byteOffset, double frames);
   double read(jsi::Runtime& rt, double handle, jsi::Object buffer, double byteOffset, double maxFrames);
   double available(jsi::Runtime& rt, double handle);

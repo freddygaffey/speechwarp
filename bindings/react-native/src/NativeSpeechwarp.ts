@@ -14,6 +14,18 @@ export interface Spec extends TurboModule {
   getSpeed(handle: number): number;
   setNonlinear(handle: number, amount: number): void;
   getNonlinear(handle: number): number;
+  setPauseCap(handle: number, value: number): void;
+  getPauseCap(handle: number): number;
+  setSpeedFloor(handle: number, value: number): void;
+  getSpeedFloor(handle: number): number;
+  setRhythmGap(handle: number, value: number): void;
+  getRhythmGap(handle: number): number;
+  setRhythmRate(handle: number, value: number): void;
+  getRhythmRate(handle: number): number;
+  setKeepSpeed(handle: number, enabled: boolean): void;
+  getKeepSpeed(handle: number): boolean;
+  // Negative until enough has been heard.
+  syllableRate(handle: number): number;
   // `buffer` holds 32-bit floats from `byteOffset`. Returns false if memory ran out.
   write(handle: number, buffer: Object, byteOffset: number, frames: number): boolean;
   // Returns the number of frames written to `buffer`.

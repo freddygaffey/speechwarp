@@ -23,6 +23,7 @@ function run(speed: number, nonlinear: boolean): string {
     const stream = new Stream(SAMPLE_RATE);
     stream.speed = speed;
     stream.nonlinear = nonlinear ? 1 : 0;
+    stream.pauseCap = 0.06; // shortens pauses; the overall speed is kept
     // In pieces, as a player would feed it.
     let frames = 0;
     for (let at = 0; at < input.length; at += 8192) {
@@ -33,15 +34,19 @@ function run(speed: number, nonlinear: boolean): string {
     const tail = stream.read();
     frames += tail.length;
     const position = stream.position;
+    const pauseCap = stream.pauseCap;
+    const syllables = stream.syllableRate;
     stream.free();
 
-    const ok = Math.abs(input.length / frames / speed - 1) < 0.1 && position === input.length;
+    const ok =
+      Math.abs(input.length / frames / speed - 1) < 0.1 && position === input.length && Math.abs(pauseCap - 0.06) < 1e-6;
     return [
       ok ? 'SPEECHWARP OK' : 'SPEECHWARP WRONG',
       `${speed}x ${nonlinear ? 'nonlinear' : 'even'}`,
       `${(input.length / SAMPLE_RATE).toFixed(1)} s in, ${(frames / SAMPLE_RATE).toFixed(1)} s out: ` +
         `${(input.length / frames).toFixed(2)}x`,
       `position at the end: ${position} of ${input.length}`,
+      `syllables a second in: ${syllables === null ? 'not yet known' : syllables.toFixed(1)}`,
       `took ${Date.now() - started} ms`,
     ].join('\n');
   } catch (error) {

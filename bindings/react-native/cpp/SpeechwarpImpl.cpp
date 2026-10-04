@@ -73,6 +73,50 @@ double SpeechwarpImpl::getNonlinear(jsi::Runtime& rt, double handle) {
   return speechwarp_get_nonlinear(find(rt, handle).stream);
 }
 
+void SpeechwarpImpl::setPauseCap(jsi::Runtime& rt, double handle, double value) {
+  speechwarp_set_pause_cap(find(rt, handle).stream, static_cast<float>(value));
+}
+
+double SpeechwarpImpl::getPauseCap(jsi::Runtime& rt, double handle) {
+  return speechwarp_get_pause_cap(find(rt, handle).stream);
+}
+
+void SpeechwarpImpl::setSpeedFloor(jsi::Runtime& rt, double handle, double value) {
+  speechwarp_set_speed_floor(find(rt, handle).stream, static_cast<float>(value));
+}
+
+double SpeechwarpImpl::getSpeedFloor(jsi::Runtime& rt, double handle) {
+  return speechwarp_get_speed_floor(find(rt, handle).stream);
+}
+
+void SpeechwarpImpl::setRhythmGap(jsi::Runtime& rt, double handle, double value) {
+  speechwarp_set_rhythm_gap(find(rt, handle).stream, static_cast<float>(value));
+}
+
+double SpeechwarpImpl::getRhythmGap(jsi::Runtime& rt, double handle) {
+  return speechwarp_get_rhythm_gap(find(rt, handle).stream);
+}
+
+void SpeechwarpImpl::setRhythmRate(jsi::Runtime& rt, double handle, double value) {
+  speechwarp_set_rhythm_rate(find(rt, handle).stream, static_cast<float>(value));
+}
+
+double SpeechwarpImpl::getRhythmRate(jsi::Runtime& rt, double handle) {
+  return speechwarp_get_rhythm_rate(find(rt, handle).stream);
+}
+
+void SpeechwarpImpl::setKeepSpeed(jsi::Runtime& rt, double handle, bool enabled) {
+  speechwarp_set_keep_speed(find(rt, handle).stream, enabled ? 1 : 0);
+}
+
+bool SpeechwarpImpl::getKeepSpeed(jsi::Runtime& rt, double handle) {
+  return speechwarp_get_keep_speed(find(rt, handle).stream) != 0;
+}
+
+double SpeechwarpImpl::syllableRate(jsi::Runtime& rt, double handle) {
+  return speechwarp_syllable_rate(find(rt, handle).stream);
+}
+
 bool SpeechwarpImpl::write(jsi::Runtime& rt, double handle, jsi::Object buffer, double byteOffset,
                            double frames) {
   const Entry& entry = find(rt, handle);

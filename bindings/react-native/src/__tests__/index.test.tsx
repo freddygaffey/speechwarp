@@ -10,6 +10,17 @@ const mockNative = {
   getSpeed: jest.fn(() => 3),
   setNonlinear: jest.fn(),
   getNonlinear: jest.fn(() => 1),
+  setPauseCap: jest.fn(),
+  getPauseCap: jest.fn(() => 0.06),
+  setKeepSpeed: jest.fn(),
+  getKeepSpeed: jest.fn(() => true),
+  setSpeedFloor: jest.fn(),
+  getSpeedFloor: jest.fn(() => 0.5),
+  setRhythmGap: jest.fn(),
+  getRhythmGap: jest.fn(() => 0.04),
+  setRhythmRate: jest.fn(),
+  getRhythmRate: jest.fn(() => 6),
+  syllableRate: jest.fn(() => -1),
   write: jest.fn((_h: number, _b: object, _o: number, _f: number) => true),
   read: jest.fn((_h: number, _b: object, _o: number, maxFrames: number) => Math.min(maxFrames, 10)),
   available: jest.fn(() => 10),
@@ -85,5 +96,27 @@ describe('Stream', () => {
     expect(mockNative.destroyStream).toHaveBeenCalledTimes(1);
     expect(() => stream.available).toThrow(/freed/);
     expect(() => stream.write(new Float32Array(2))).toThrow(/freed/);
+  });
+
+  it('passes the options for high speeds across and checks them', () => {
+    const stream = new Stream(44100);
+    stream.pauseCap = 0.06;
+    stream.keepSpeed = false;
+    stream.speedFloor = 0.5;
+    stream.rhythmGap = 0.04;
+    stream.rhythmRate = 6;
+    expect(mockNative.setPauseCap).toHaveBeenCalledWith(7, 0.06);
+    expect(mockNative.setKeepSpeed).toHaveBeenCalledWith(7, false);
+    expect(mockNative.setSpeedFloor).toHaveBeenCalledWith(7, 0.5);
+    expect(mockNative.setRhythmGap).toHaveBeenCalledWith(7, 0.04);
+    expect(mockNative.setRhythmRate).toHaveBeenCalledWith(7, 6);
+    expect([stream.pauseCap, stream.keepSpeed, stream.speedFloor, stream.rhythmGap, stream.rhythmRate]).toEqual([
+      0.06, true, 0.5, 0.04, 6,
+    ]);
+    expect(stream.syllableRate).toBeNull();
+    mockNative.syllableRate.mockReturnValueOnce(4.5);
+    expect(stream.syllableRate).toBe(4.5);
+    expect(() => (stream.pauseCap = NaN)).toThrow(RangeError);
+    expect(() => (stream.rhythmRate = 0)).toThrow(RangeError);
   });
 });

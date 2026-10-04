@@ -26,6 +26,13 @@ export function version(): string {
 }
 
 /** Speeds up speech. Write audio in, read the faster audio out. */
+function number(name: string, value: number): number {
+  if (Number.isNaN(value)) {
+    throw new RangeError(`${name} must be a number`);
+  }
+  return value;
+}
+
 export class Stream {
   readonly sampleRate: number;
   readonly channels: number;
@@ -82,6 +89,83 @@ export class Stream {
       throw new RangeError('nonlinear must be a number');
     }
     Native.setNonlinear(this.open(), value);
+  }
+
+  // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped. See
+  // docs/how-it-works.md.
+
+  /**
+   * Shorten every pause to at most this many seconds of input before speeding up, so that the speed is spent
+   * on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. `position` counts the
+   * frames left out.
+   */
+  get pauseCap(): number {
+    return Native.getPauseCap(this.open());
+  }
+
+  set pauseCap(value: number) {
+    Native.setPauseCap(this.open(), number('pauseCap', value));
+  }
+
+  /**
+   * While the pause cap or rhythm is on, keep the overall speed (true, the default): time saved in pauses is
+   * spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them faster.
+   * When false, trimmed pauses make playback faster than `speed`.
+   */
+  get keepSpeed(): boolean {
+    return Native.getKeepSpeed(this.open());
+  }
+
+  set keepSpeed(value: boolean) {
+    Native.setKeepSpeed(this.open(), value);
+  }
+
+  /**
+   * No 10 ms block of speech plays slower than this fraction of `speed`: at 8x, 0.5 keeps every block at 4x
+   * or more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with
+   * nonlinear speed-up above 1x.
+   */
+  get speedFloor(): number {
+    return Native.getSpeedFloor(this.open());
+  }
+
+  set speedFloor(value: number) {
+    Native.setSpeedFloor(this.open(), number('speedFloor', value));
+  }
+
+  /**
+   * Seconds of silence put into the output `rhythmRate` times a second, at the quietest point nearby, which
+   * can help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02 to 0.06.
+   * Allowed: 0, or 0.005 to 0.2. `position` holds still during a gap.
+   */
+  get rhythmGap(): number {
+    return Native.getRhythmGap(this.open());
+  }
+
+  set rhythmGap(value: number) {
+    Native.setRhythmGap(this.open(), number('rhythmGap', value));
+  }
+
+  /** Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. */
+  get rhythmRate(): number {
+    return Native.getRhythmRate(this.open());
+  }
+
+  set rhythmRate(value: number) {
+    if (!(value > 0)) {
+      throw new RangeError(`rhythmRate must be greater than zero, not ${value}`);
+    }
+    Native.setRhythmRate(this.open(), value);
+  }
+
+  /**
+   * Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
+   * been written since creation or `reset`. Multiply by the speed for the rate heard. An estimate, typically
+   * within about 10%.
+   */
+  get syllableRate(): number | null {
+    const rate = Native.syllableRate(this.open());
+    return rate < 0 ? null : rate;
   }
 
   /** Frames of output ready to read. */
