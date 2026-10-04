@@ -2,7 +2,7 @@
 # third_party/, which a crate cannot reach from a subfolder. The Rust code is in bindings/rust.
 [package]
 name = "speechwarp"
-version = "0.1.0" # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
+version = "0.2.0" # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
 edition = "2021"
 rust-version = "1.63"
 description = "Nonlinear speed-up for speech: listen faster and still follow it"

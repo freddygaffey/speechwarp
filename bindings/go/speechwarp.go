@@ -50,7 +50,7 @@ var (
 	ErrClosed = errors.New("speechwarp: the stream is closed")
 )
 
-// Version returns the version of the C library, such as "0.1.0".
+// Version returns the version of the C library, such as "0.2.0".
 func Version() string {
 	return C.GoString(C.speechwarp_version())
 }

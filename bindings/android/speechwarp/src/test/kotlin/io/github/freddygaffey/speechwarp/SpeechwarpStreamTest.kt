@@ -6,6 +6,9 @@ import kotlin.math.min
 import kotlin.math.sin
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -156,5 +159,44 @@ class SpeechwarpStreamTest {
         stream.close()
         assertThrows(IllegalStateException::class.java) { stream.speed = 2f }
         assertThrows(IllegalStateException::class.java) { stream.write(FloatArray(10)) }
+    }
+
+    @Test
+    fun highSpeedOptionsStartOffAndClamp() {
+        SpeechwarpStream(rate).use { stream ->
+            assertEquals(0f, stream.pauseCap)
+            assertTrue(stream.keepSpeed)
+            assertEquals(0f, stream.speedFloor)
+            assertEquals(0f, stream.rhythmGap)
+            assertEquals(5f, stream.rhythmRate)
+            assertNull(stream.syllableRate)
+            stream.pauseCap = 5f
+            stream.speedFloor = 0.5f
+            stream.rhythmGap = 0.04f
+            stream.rhythmRate = 100f
+            stream.keepSpeed = false
+            assertEquals(1f, stream.pauseCap)
+            assertEquals(0.5f, stream.speedFloor)
+            assertEquals(0.04f, stream.rhythmGap, 1e-6f)
+            assertEquals(16f, stream.rhythmRate)
+            assertFalse(stream.keepSpeed)
+            assertThrows(IllegalArgumentException::class.java) { stream.pauseCap = Float.NaN }
+            assertThrows(IllegalArgumentException::class.java) { stream.rhythmRate = 0f }
+        }
+    }
+
+    @Test
+    fun pauseCapShortensAndPositionReachesTheEnd() {
+        val input = signal(12.0)
+        SpeechwarpStream(rate).use { stream ->
+            stream.nonlinear = 0f
+            stream.pauseCap = 0.03f
+            stream.keepSpeed = false
+            stream.write(input)
+            stream.flush()
+            assertTrue(readAll(stream).size < input.size * 0.9)
+            assertEquals(input.size.toLong(), stream.position)
+            assertNotNull(stream.syllableRate)
+        }
     }
 }

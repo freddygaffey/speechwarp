@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
+import java.util.OptionalDouble;
 
 /**
  * Speeds up speech. Write audio in, read the faster audio out.
@@ -61,7 +62,7 @@ public final class SpeechwarpStream implements AutoCloseable {
         this.channels = channels;
     }
 
-    /** The version of the native library, such as "0.1.0". */
+    /** The version of the native library, such as "0.2.0". */
     public static String libraryVersion() {
         return nativeVersion();
     }
@@ -108,6 +109,100 @@ public final class SpeechwarpStream implements AutoCloseable {
             throw new IllegalArgumentException("nonlinear must be a number");
         }
         nativeSetNonlinear(open(), amount);
+    }
+
+    // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped. See
+    // docs/how-it-works.md.
+
+    public float pauseCap() {
+        return nativeGetPauseCap(open());
+    }
+
+    /**
+     * Shortens every pause to at most this many seconds of input before speeding up, so that the speed is
+     * spent on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. {@link
+     * #position()} counts the frames left out.
+     *
+     * @throws IllegalArgumentException if the value is not a number
+     */
+    public void setPauseCap(float seconds) {
+        nativeSetPauseCap(open(), number("pauseCap", seconds));
+    }
+
+    public boolean keepSpeed() {
+        return nativeGetKeepSpeed(open());
+    }
+
+    /**
+     * While the pause cap or rhythm is on, keeps the overall speed (true, the default): time saved in pauses
+     * is spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them
+     * faster. When false, trimmed pauses make playback faster than the speed.
+     */
+    public void setKeepSpeed(boolean enabled) {
+        nativeSetKeepSpeed(open(), enabled);
+    }
+
+    public float speedFloor() {
+        return nativeGetSpeedFloor(open());
+    }
+
+    /**
+     * No 10 ms block of speech plays slower than this fraction of the speed: at 8x, 0.5 keeps every block at
+     * 4x or more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with
+     * nonlinear speed-up above 1x.
+     *
+     * @throws IllegalArgumentException if the value is not a number
+     */
+    public void setSpeedFloor(float fraction) {
+        nativeSetSpeedFloor(open(), number("speedFloor", fraction));
+    }
+
+    public float rhythmGap() {
+        return nativeGetRhythmGap(open());
+    }
+
+    /**
+     * Seconds of silence put into the output {@link #rhythmRate()} times a second, at the quietest point
+     * nearby, which can help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02
+     * to 0.06. Allowed: 0, or 0.005 to 0.2. {@link #position()} holds still during a gap.
+     *
+     * @throws IllegalArgumentException if the value is not a number
+     */
+    public void setRhythmGap(float seconds) {
+        nativeSetRhythmGap(open(), number("rhythmGap", seconds));
+    }
+
+    public float rhythmRate() {
+        return nativeGetRhythmRate(open());
+    }
+
+    /**
+     * Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8.
+     *
+     * @throws IllegalArgumentException if the value is zero, negative or not a number
+     */
+    public void setRhythmRate(float perSecond) {
+        if (!(perSecond > 0)) {
+            throw new IllegalArgumentException("rhythmRate must be greater than zero, not " + perSecond);
+        }
+        nativeSetRhythmRate(open(), perSecond);
+    }
+
+    /**
+     * Syllables a second in the input, pauses included, over about the last 60 s written; empty until 10 s
+     * have been written since creation or {@link #reset()}. Multiply by the speed for the rate heard. An
+     * estimate, typically within about 10%.
+     */
+    public OptionalDouble syllableRate() {
+        double rate = nativeSyllableRate(open());
+        return rate < 0 ? OptionalDouble.empty() : OptionalDouble.of(rate);
+    }
+
+    private static float number(String name, float value) {
+        if (Float.isNaN(value)) {
+            throw new IllegalArgumentException(name + " must be a number");
+        }
+        return value;
     }
 
     /** Frames of output ready to read. */
@@ -268,6 +363,17 @@ public final class SpeechwarpStream implements AutoCloseable {
     private static native float nativeGetSpeed(long handle);
     private static native void nativeSetNonlinear(long handle, float amount);
     private static native float nativeGetNonlinear(long handle);
+    private static native void nativeSetPauseCap(long handle, float value);
+    private static native float nativeGetPauseCap(long handle);
+    private static native void nativeSetKeepSpeed(long handle, boolean enabled);
+    private static native boolean nativeGetKeepSpeed(long handle);
+    private static native void nativeSetSpeedFloor(long handle, float value);
+    private static native float nativeGetSpeedFloor(long handle);
+    private static native void nativeSetRhythmGap(long handle, float value);
+    private static native float nativeGetRhythmGap(long handle);
+    private static native void nativeSetRhythmRate(long handle, float value);
+    private static native float nativeGetRhythmRate(long handle);
+    private static native double nativeSyllableRate(long handle);
     private static native int nativeAvailable(long handle);
     private static native long nativePosition(long handle);
     private static native boolean nativeFlush(long handle);

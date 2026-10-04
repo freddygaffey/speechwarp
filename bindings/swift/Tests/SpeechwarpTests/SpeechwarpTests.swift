@@ -129,4 +129,37 @@ final class SpeechwarpTests: XCTestCase {
         try stream.flush()
         XCTAssertEqual(stream.read(), try speedUp(input, speed: 3))
     }
+
+    func testHighSpeedOptions() throws {
+        let stream = try SpeechwarpStream(sampleRate: rate)
+        XCTAssertEqual(stream.pauseCap, 0)
+        XCTAssertTrue(stream.keepSpeed)
+        XCTAssertEqual(stream.speedFloor, 0)
+        XCTAssertEqual(stream.rhythmGap, 0)
+        XCTAssertEqual(stream.rhythmRate, 5)
+        XCTAssertNil(stream.syllableRate)
+        stream.pauseCap = 5
+        stream.speedFloor = 0.5
+        stream.rhythmGap = 0.04
+        stream.rhythmRate = 100
+        stream.keepSpeed = false
+        XCTAssertEqual(stream.pauseCap, 1)
+        XCTAssertEqual(stream.speedFloor, 0.5)
+        XCTAssertEqual(stream.rhythmGap, 0.04, accuracy: 1e-6)
+        XCTAssertEqual(stream.rhythmRate, 16)
+        XCTAssertFalse(stream.keepSpeed)
+    }
+
+    func testPauseCapShortensAndPositionReachesTheEnd() throws {
+        let input = signal(seconds: 12)
+        let stream = try SpeechwarpStream(sampleRate: rate)
+        stream.nonlinear = 0
+        stream.pauseCap = 0.03
+        stream.keepSpeed = false
+        try stream.write(input)
+        try stream.flush()
+        XCTAssertLessThan(Double(stream.read().count), Double(input.count) * 0.9)
+        XCTAssertEqual(stream.position, Int64(input.count))
+        XCTAssertNotNil(stream.syllableRate)
+    }
 }

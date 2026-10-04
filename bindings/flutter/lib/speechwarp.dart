@@ -70,7 +70,7 @@ class SpeechwarpStream implements Finalizable {
   /// The fastest speed that can be set.
   static const double maxSpeed = 20;
 
-  /// The version of the native library, such as "0.1.0".
+  /// The version of the native library, such as "0.2.0".
   static String get libraryVersion => _version().toDartString();
 
   /// Samples per second.

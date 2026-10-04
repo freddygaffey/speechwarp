@@ -19,7 +19,7 @@ public final class SpeechwarpStream {
     /// The slowest and fastest speeds that can be set.
     public static let speedRange: ClosedRange<Float> = 0.05...20
 
-    /// The version of the C library, such as "0.1.0".
+    /// The version of the C library, such as "0.2.0".
     public static var libraryVersion: String { String(cString: speechwarp_version()) }
 
     public let sampleRate: Int
@@ -60,6 +60,55 @@ public final class SpeechwarpStream {
     public var nonlinear: Float {
         get { speechwarp_get_nonlinear(stream) }
         set { speechwarp_set_nonlinear(stream, newValue) }
+    }
+
+    // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped and NaN is
+    // ignored, as for `nonlinear`. See docs/how-it-works.md.
+
+    /// Shortens every pause to at most this many seconds of input before speeding up, so that the speed is spent
+    /// on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. `position` counts the
+    /// frames left out.
+    public var pauseCap: Float {
+        get { speechwarp_get_pause_cap(stream) }
+        set { speechwarp_set_pause_cap(stream, newValue) }
+    }
+
+    /// While the pause cap or rhythm is on, keeps the overall speed (true, the default): time saved in pauses is
+    /// spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them faster.
+    /// When false, trimmed pauses make playback faster than `speed`.
+    public var keepSpeed: Bool {
+        get { speechwarp_get_keep_speed(stream) != 0 }
+        set { speechwarp_set_keep_speed(stream, newValue ? 1 : 0) }
+    }
+
+    /// No 10 ms block of speech plays slower than this fraction of `speed`: at 8x, 0.5 keeps every block at 4x or
+    /// more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with nonlinear
+    /// speed-up above 1x.
+    public var speedFloor: Float {
+        get { speechwarp_get_speed_floor(stream) }
+        set { speechwarp_set_speed_floor(stream, newValue) }
+    }
+
+    /// Seconds of silence put into the output `rhythmRate` times a second, at the quietest point nearby, which
+    /// can help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02 to 0.06.
+    /// Allowed: 0, or 0.005 to 0.2. `position` holds still during a gap.
+    public var rhythmGap: Float {
+        get { speechwarp_get_rhythm_gap(stream) }
+        set { speechwarp_set_rhythm_gap(stream, newValue) }
+    }
+
+    /// Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. Zero, negative and NaN are ignored.
+    public var rhythmRate: Float {
+        get { speechwarp_get_rhythm_rate(stream) }
+        set { speechwarp_set_rhythm_rate(stream, newValue) }
+    }
+
+    /// Syllables a second in the input, pauses included, over about the last 60 s written; nil until 10 s have
+    /// been written since creation or `reset()`. Multiply by the speed for the rate heard. An estimate, typically
+    /// within about 10%.
+    public var syllableRate: Double? {
+        let rate = speechwarp_syllable_rate(stream)
+        return rate < 0 ? nil : rate
     }
 
     /// Frames of output ready to read.

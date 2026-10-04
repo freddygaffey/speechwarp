@@ -2,6 +2,7 @@ package io.github.freddygaffey.speechwarp;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -172,5 +173,44 @@ public class SpeechwarpStreamTest {
         stream.close();
         assertThrows(IllegalStateException.class, () -> stream.setSpeed(2));
         assertThrows(IllegalStateException.class, () -> stream.write(new float[10]));
+    }
+
+    @Test
+    public void highSpeedOptionsStartOffAndClamp() {
+        try (SpeechwarpStream stream = new SpeechwarpStream(RATE)) {
+            assertEquals(0f, stream.pauseCap(), 0);
+            assertTrue(stream.keepSpeed());
+            assertEquals(0f, stream.speedFloor(), 0);
+            assertEquals(0f, stream.rhythmGap(), 0);
+            assertEquals(5f, stream.rhythmRate(), 0);
+            assertFalse(stream.syllableRate().isPresent());
+            stream.setPauseCap(5);
+            stream.setSpeedFloor(0.5f);
+            stream.setRhythmGap(0.04f);
+            stream.setRhythmRate(100);
+            stream.setKeepSpeed(false);
+            assertEquals(1f, stream.pauseCap(), 0);
+            assertEquals(0.5f, stream.speedFloor(), 0);
+            assertEquals(0.04f, stream.rhythmGap(), 1e-6f);
+            assertEquals(16f, stream.rhythmRate(), 0);
+            assertFalse(stream.keepSpeed());
+            assertThrows(IllegalArgumentException.class, () -> stream.setPauseCap(Float.NaN));
+            assertThrows(IllegalArgumentException.class, () -> stream.setRhythmRate(0));
+        }
+    }
+
+    @Test
+    public void pauseCapShortensAndPositionReachesTheEnd() {
+        float[] input = signal(12, 1);
+        try (SpeechwarpStream stream = new SpeechwarpStream(RATE)) {
+            stream.setNonlinear(0);
+            stream.setPauseCap(0.03f);
+            stream.setKeepSpeed(false);
+            stream.write(input);
+            stream.flush();
+            assertTrue(readAll(stream).length < input.length * 0.9);
+            assertEquals(input.length, stream.position());
+            assertTrue(stream.syllableRate().isPresent());
+        }
     }
 }

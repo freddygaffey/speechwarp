@@ -49,6 +49,70 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
             nativeSetNonlinear(open(), value)
         }
 
+    // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped. See
+    // docs/how-it-works.md.
+
+    /**
+     * Shortens every pause to at most this many seconds of input before speeding up, so that the speed is spent
+     * on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. [position] counts the
+     * frames left out.
+     */
+    var pauseCap: Float
+        get() = nativeGetPauseCap(open())
+        set(value) {
+            require(!value.isNaN()) { "pauseCap must be a number" }
+            nativeSetPauseCap(open(), value)
+        }
+
+    /**
+     * While the pause cap or rhythm is on, keeps the overall speed (true, the default): time saved in pauses is
+     * spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them faster.
+     * When false, trimmed pauses make playback faster than [speed].
+     */
+    var keepSpeed: Boolean
+        get() = nativeGetKeepSpeed(open())
+        set(value) = nativeSetKeepSpeed(open(), value)
+
+    /**
+     * No 10 ms block of speech plays slower than this fraction of [speed]: at 8x, 0.5 keeps every block at 4x or
+     * more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with nonlinear
+     * speed-up above 1x.
+     */
+    var speedFloor: Float
+        get() = nativeGetSpeedFloor(open())
+        set(value) {
+            require(!value.isNaN()) { "speedFloor must be a number" }
+            nativeSetSpeedFloor(open(), value)
+        }
+
+    /**
+     * Seconds of silence put into the output [rhythmRate] times a second, at the quietest point nearby, which can
+     * help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02 to 0.06. Allowed: 0,
+     * or 0.005 to 0.2. [position] holds still during a gap.
+     */
+    var rhythmGap: Float
+        get() = nativeGetRhythmGap(open())
+        set(value) {
+            require(!value.isNaN()) { "rhythmGap must be a number" }
+            nativeSetRhythmGap(open(), value)
+        }
+
+    /** Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8. */
+    var rhythmRate: Float
+        get() = nativeGetRhythmRate(open())
+        set(value) {
+            require(value > 0) { "rhythmRate must be greater than zero, not $value" }
+            nativeSetRhythmRate(open(), value)
+        }
+
+    /**
+     * Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
+     * been written since creation or [reset]. Multiply by the speed for the rate heard. An estimate, typically
+     * within about 10%.
+     */
+    val syllableRate: Double?
+        get() = nativeSyllableRate(open()).takeIf { it >= 0 }
+
     /** Frames of output ready to read. */
     val framesAvailable: Int
         get() = nativeAvailable(open())
@@ -148,7 +212,7 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
             System.loadLibrary("speechwarp_jni")
         }
 
-        /** The version of the native library, such as "0.1.0". */
+        /** The version of the native library, such as "0.2.0". */
         @JvmStatic
         val libraryVersion: String
             get() = nativeVersion()
@@ -160,6 +224,17 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
         @JvmStatic private external fun nativeGetSpeed(handle: Long): Float
         @JvmStatic private external fun nativeSetNonlinear(handle: Long, amount: Float)
         @JvmStatic private external fun nativeGetNonlinear(handle: Long): Float
+        @JvmStatic private external fun nativeSetPauseCap(handle: Long, value: Float)
+        @JvmStatic private external fun nativeGetPauseCap(handle: Long): Float
+        @JvmStatic private external fun nativeSetKeepSpeed(handle: Long, enabled: Boolean)
+        @JvmStatic private external fun nativeGetKeepSpeed(handle: Long): Boolean
+        @JvmStatic private external fun nativeSetSpeedFloor(handle: Long, value: Float)
+        @JvmStatic private external fun nativeGetSpeedFloor(handle: Long): Float
+        @JvmStatic private external fun nativeSetRhythmGap(handle: Long, value: Float)
+        @JvmStatic private external fun nativeGetRhythmGap(handle: Long): Float
+        @JvmStatic private external fun nativeSetRhythmRate(handle: Long, value: Float)
+        @JvmStatic private external fun nativeGetRhythmRate(handle: Long): Float
+        @JvmStatic private external fun nativeSyllableRate(handle: Long): Double
         @JvmStatic private external fun nativeAvailable(handle: Long): Int
         @JvmStatic private external fun nativePosition(handle: Long): Long
         @JvmStatic private external fun nativeFlush(handle: Long): Boolean

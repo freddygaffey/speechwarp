@@ -55,6 +55,42 @@ NATIVE(jfloat, nativeGetNonlinear)(JNIEnv* env, jclass type, jlong handle) {
   return speechwarp_get_nonlinear(stream_of(handle));
 }
 
+/* The options for very high speeds. */
+#define FLOAT_OPTION(Name, name)                                                         \
+  NATIVE(void, nativeSet##Name)(JNIEnv * env, jclass type, jlong handle, jfloat value) { \
+    (void)env;                                                                           \
+    (void)type;                                                                          \
+    speechwarp_set_##name(stream_of(handle), value);                                     \
+  }                                                                                      \
+  NATIVE(jfloat, nativeGet##Name)(JNIEnv * env, jclass type, jlong handle) {             \
+    (void)env;                                                                           \
+    (void)type;                                                                          \
+    return speechwarp_get_##name(stream_of(handle));                                     \
+  }
+
+FLOAT_OPTION(PauseCap, pause_cap)
+FLOAT_OPTION(SpeedFloor, speed_floor)
+FLOAT_OPTION(RhythmGap, rhythm_gap)
+FLOAT_OPTION(RhythmRate, rhythm_rate)
+
+NATIVE(void, nativeSetKeepSpeed)(JNIEnv* env, jclass type, jlong handle, jboolean enabled) {
+  (void)env;
+  (void)type;
+  speechwarp_set_keep_speed(stream_of(handle), enabled ? 1 : 0);
+}
+
+NATIVE(jboolean, nativeGetKeepSpeed)(JNIEnv* env, jclass type, jlong handle) {
+  (void)env;
+  (void)type;
+  return speechwarp_get_keep_speed(stream_of(handle)) ? JNI_TRUE : JNI_FALSE;
+}
+
+NATIVE(jdouble, nativeSyllableRate)(JNIEnv* env, jclass type, jlong handle) {
+  (void)env;
+  (void)type;
+  return speechwarp_syllable_rate(stream_of(handle));
+}
+
 NATIVE(jint, nativeAvailable)(JNIEnv* env, jclass type, jlong handle) {
   (void)env;
   (void)type;
