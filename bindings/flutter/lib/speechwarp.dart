@@ -38,10 +38,36 @@ final _setSpeed = _library
     .lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>('speechwarp_set_speed');
 final _getSpeed =
     _library.lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_speed');
-final _setNonlinear = _library.lookupFunction<Void Function(Pointer<Void>, Float),
-    void Function(Pointer<Void>, double)>('speechwarp_set_nonlinear');
+final _setNonlinear =
+    _library.lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>(
+        'speechwarp_set_nonlinear');
 final _getNonlinear =
     _library.lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_nonlinear');
+final _setPauseCap = _library.lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>(
+    'speechwarp_set_pause_cap');
+final _getPauseCap =
+    _library.lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_pause_cap');
+final _setKeepSpeed = _library.lookupFunction<Void Function(Pointer<Void>, Int32), void Function(Pointer<Void>, int)>(
+    'speechwarp_set_keep_speed');
+final _getKeepSpeed =
+    _library.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('speechwarp_get_keep_speed');
+final _setSpeedFloor =
+    _library.lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>(
+        'speechwarp_set_speed_floor');
+final _getSpeedFloor = _library
+    .lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_speed_floor');
+final _setRhythmGap =
+    _library.lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>(
+        'speechwarp_set_rhythm_gap');
+final _getRhythmGap =
+    _library.lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_rhythm_gap');
+final _setRhythmRate =
+    _library.lookupFunction<Void Function(Pointer<Void>, Float), void Function(Pointer<Void>, double)>(
+        'speechwarp_set_rhythm_rate');
+final _getRhythmRate = _library
+    .lookupFunction<Float Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_get_rhythm_rate');
+final _syllableRate =
+    _library.lookupFunction<Double Function(Pointer<Void>), double Function(Pointer<Void>)>('speechwarp_syllable_rate');
 final _write = _library.lookupFunction<Int32 Function(Pointer<Void>, Pointer<Float>, Int32),
     int Function(Pointer<Void>, Pointer<Float>, int)>('speechwarp_write');
 final _writeInt16 = _library.lookupFunction<Int32 Function(Pointer<Void>, Pointer<Int16>, Int32),
@@ -113,6 +139,53 @@ class SpeechwarpStream implements Finalizable {
   set nonlinear(double value) {
     if (value.isNaN) throw ArgumentError.value(value, 'nonlinear', 'must be a number');
     _setNonlinear(_open(), value);
+  }
+
+  // Options for very high speeds (5x to 8x). All off by default; out-of-range values are clamped. See
+  // docs/how-it-works.md.
+
+  /// Shortens every pause to at most this many seconds of input before speeding up, so that the speed is spent
+  /// on words. 0 (the default) is off. Sensible: 0.04 to 0.2. Allowed: 0, or 0.01 to 1. [position] counts the
+  /// frames left out.
+  double get pauseCap => _getPauseCap(_open());
+  set pauseCap(double value) => _setPauseCap(_open(), _number(value, 'pauseCap'));
+
+  /// While the pause cap or rhythm is on, keeps the overall speed (true, the default): time saved in pauses is
+  /// spent playing the words slower, never below 1x, and time spent in gaps is made up by playing them faster.
+  /// When false, trimmed pauses make playback faster than [speed].
+  bool get keepSpeed => _getKeepSpeed(_open()) != 0;
+  set keepSpeed(bool value) => _setKeepSpeed(_open(), value ? 1 : 0);
+
+  /// No 10 ms block of speech plays slower than this fraction of [speed]: at 8x, 0.5 keeps every block at 4x or
+  /// more. 0 (the default) is off; 1 is the same as linear. Sensible: 0.3 to 0.7. Applies only with nonlinear
+  /// speed-up above 1x.
+  double get speedFloor => _getSpeedFloor(_open());
+  set speedFloor(double value) => _setSpeedFloor(_open(), _number(value, 'speedFloor'));
+
+  /// Seconds of silence put into the output [rhythmRate] times a second, at the quietest point nearby, which can
+  /// help the listener keep up at very high speeds. 0 (the default) is off. Sensible: 0.02 to 0.06. Allowed: 0,
+  /// or 0.005 to 0.2. [position] holds still during a gap.
+  double get rhythmGap => _getRhythmGap(_open());
+  set rhythmGap(double value) => _setRhythmGap(_open(), _number(value, 'rhythmGap'));
+
+  /// Rhythm gaps a second of output, 1 to 16; default 5. Sensible: 4 to 8.
+  double get rhythmRate => _getRhythmRate(_open());
+  set rhythmRate(double value) {
+    if (!(value > 0)) throw ArgumentError.value(value, 'rhythmRate', 'must be greater than zero');
+    _setRhythmRate(_open(), value);
+  }
+
+  /// Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
+  /// been written since creation or [reset]. Multiply by the speed for the rate heard. An estimate, typically
+  /// within about 10%.
+  double? get syllableRate {
+    final rate = _syllableRate(_open());
+    return rate < 0 ? null : rate;
+  }
+
+  static double _number(double value, String name) {
+    if (value.isNaN) throw ArgumentError.value(value, name, 'must be a number');
+    return value;
   }
 
   /// Frames of output ready to read.

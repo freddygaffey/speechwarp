@@ -135,4 +135,36 @@ void main() {
     expect(stream.read(), speedUp(input, 3));
     stream.close();
   });
+
+  test('the options for high speeds start off and are clamped', () {
+    final stream = SpeechwarpStream(rate);
+    expect([stream.pauseCap, stream.keepSpeed, stream.speedFloor, stream.rhythmGap, stream.rhythmRate],
+        [0, true, 0, 0, 5]);
+    expect(stream.syllableRate, isNull);
+    stream
+      ..pauseCap = 5
+      ..speedFloor = 0.5
+      ..rhythmGap = 0.04
+      ..rhythmRate = 100
+      ..keepSpeed = false;
+    expect([stream.pauseCap, stream.speedFloor, stream.rhythmRate, stream.keepSpeed], [1, 0.5, 16, false]);
+    expect(stream.rhythmGap, closeTo(0.04, 1e-6));
+    expect(() => stream.pauseCap = double.nan, throwsArgumentError);
+    expect(() => stream.rhythmRate = 0, throwsArgumentError);
+    stream.close();
+  });
+
+  test('the pause cap shortens pauses and position still reaches the end', () {
+    final input = signal(12);
+    final stream = SpeechwarpStream(rate)
+      ..nonlinear = 0
+      ..pauseCap = 0.03
+      ..keepSpeed = false
+      ..write(input)
+      ..flush();
+    expect(stream.read().length, lessThan(input.length * 0.9));
+    expect(stream.position, input.length);
+    expect(stream.syllableRate, isNotNull);
+    stream.close();
+  });
 }

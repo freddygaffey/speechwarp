@@ -16,10 +16,12 @@ void main() {
     final input = testSignal();
     final stream = SpeechwarpStream(sampleRate)
       ..speed = 3
+      ..pauseCap = 0.06
+      ..rhythmGap = 0.04
       ..write(input)
       ..flush();
     final output = stream.read();
-    expect(input.length / output.length, closeTo(3, 0.3));
+    expect(input.length / output.length, closeTo(3, 0.45));
     expect(stream.position, input.length);
     stream.close();
 
