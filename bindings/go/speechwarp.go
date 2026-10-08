@@ -222,6 +222,72 @@ func (s *Stream) SetRhythmRate(perSecond float32) {
 	}
 }
 
+// HeardPause returns the seconds last given to SetHeardPause, also while the rule is off.
+func (s *Stream) HeardPause() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_heard_pause(s.raw))
+}
+
+// HeardPauseFrom returns the fromSpeed last given to SetHeardPause.
+func (s *Stream) HeardPauseFrom() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_heard_pause_from(s.raw))
+}
+
+// SetHeardPause keeps each pause about seconds long in the output, from fromSpeed upward. The pause cap in
+// force is seconds times the current speed, clamped to 0.03 to 0.4 s of input; below fromSpeed pauses are
+// left alone.
+//
+// seconds: 0 turns the rule off (and the pause cap with it), otherwise 0.002 to 0.4. fromSpeed: 1 to 20.
+// Sensible: 0.015 to 0.06 heard, from 3x. SetPauseCap turns the rule off. Out-of-range values are clamped; if
+// any argument is NaN the call is ignored.
+func (s *Stream) SetHeardPause(seconds, fromSpeed float32) {
+	if s.raw != nil {
+		C.speechwarp_set_heard_pause(s.raw, C.float(seconds), C.float(fromSpeed))
+	}
+}
+
+// FloorBlend returns the fraction last given to SetFloorBlend, also while the rule is off.
+func (s *Stream) FloorBlend() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_floor_blend(s.raw))
+}
+
+// FloorBlendFrom returns the fromSpeed last given to SetFloorBlend.
+func (s *Stream) FloorBlendFrom() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_floor_blend_from(s.raw))
+}
+
+// FloorBlendFull returns the fullSpeed last given to SetFloorBlend.
+func (s *Stream) FloorBlendFull() float32 {
+	if s.raw == nil {
+		return 0
+	}
+	return float32(C.speechwarp_get_floor_blend_full(s.raw))
+}
+
+// SetFloorBlend makes the speed floor in force 0 below fromSpeed, rising linearly to fraction at fullSpeed,
+// and fraction above it, so that a speed ramp never changes the sound in a jump.
+//
+// fraction: 0 turns the rule off (and the floor with it), otherwise up to 1. Speeds 1 to 20; if fullSpeed is
+// not above fromSpeed the floor steps to fraction at fromSpeed. Sensible: 0.5 from 4x, full at 6x.
+// SetSpeedFloor turns the rule off. Out-of-range values are clamped; if any argument is NaN the call is
+// ignored.
+func (s *Stream) SetFloorBlend(fraction, fromSpeed, fullSpeed float32) {
+	if s.raw != nil {
+		C.speechwarp_set_floor_blend(s.raw, C.float(fraction), C.float(fromSpeed), C.float(fullSpeed))
+	}
+}
+
 // SyllableRate returns the syllables a second in the input, pauses included, over about the last 60 s
 // written, and false until 10 s have been written since creation or Reset. Multiply by the speed for the
 // rate heard. It is an estimate, typically within about 10%.

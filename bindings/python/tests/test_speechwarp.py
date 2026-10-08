@@ -1,3 +1,4 @@
+import math
 import re
 from pathlib import Path
 
@@ -149,3 +150,152 @@ def test_speed_up_takes_options():
     samples = signal(30)  # long enough for the speed correction to settle
     kept = speechwarp.speed_up(samples, RATE, 3, rhythm_gap=0.04)
     assert abs(len(kept) / (len(samples) / 3) - 1) < 0.05
+
+
+def test_heard_pause_and_floor_blend():
+    stream = speechwarp.Stream(RATE)
+    assert (stream.heard_pause, stream.floor_blend) == (0, 0)
+    stream.set_heard_pause(0.03, 3)
+    assert stream.heard_pause == pytest.approx(0.03) and stream.heard_pause_from == 3
+    stream.speed = 5
+    assert stream.pause_cap == pytest.approx(0.15)
+    stream.speed = 2  # below from_speed
+    assert stream.pause_cap == 0
+    stream.speed = 5
+    stream.pause_cap = 0.1  # a fixed value turns the rule off
+    assert stream.pause_cap == pytest.approx(0.1)
+    stream.set_floor_blend(0.5, 4, 6)
+    assert (stream.floor_blend, stream.floor_blend_from, stream.floor_blend_full) == (0.5, 4, 6)
+    stream.speed = 5
+    assert stream.speed_floor == pytest.approx(0.25)
+    stream.speed = 8
+    assert stream.speed_floor == pytest.approx(0.5)
+    stream.speed = 3
+    assert stream.speed_floor == 0
+    with pytest.raises(ValueError):
+        stream.set_heard_pause(float("nan"), 3)
+
+
+def test_syllable_counter_matches_the_stream():
+    samples = signal(30)
+    counter = speechwarp.SyllableCounter(RATE)
+    stream = speechwarp.Stream(RATE)
+    counter.write(samples[: 5 * RATE])
+    stream.write(samples[: 5 * RATE])
+    assert counter.rate() is None and stream.syllable_rate is None
+    counter.write(samples[5 * RATE:])
+    stream.write(samples[5 * RATE:])
+    rate = counter.rate()
+    assert rate is not None and rate > 0
+    assert rate == pytest.approx(stream.syllable_rate)
+    assert counter.rate(30, 5) is not None
+    counter.write((samples * 32767).astype(np.int16))  # int16 input is accepted
+    counter.reset()
+    assert counter.rate() is None
+    with pytest.raises(ValueError):
+        counter.write(np.zeros((10, 2), np.float32))
+    with pytest.raises(ValueError):
+        speechwarp.SyllableCounter(100)
+
+
+def test_trainer_threshold_test():
+    trainer = speechwarp.ListenerTrainer(7)
+    assert trainer.threshold == 0 and not trainer.test_done
+    trainer.test_begin(12, 0)
+    true_threshold = 14.0
+    for step in range(40):
+        rate = trainer.test_rate()
+        assert 3 <= rate <= 60
+        score = 0.95 if rate < true_threshold else 0.4
+        assert trainer.add_measure(speechwarp.TrainerMeasure.INTELLIGIBILITY, score, 8, rate, step)
+        if trainer.test_done:
+            break
+    threshold = trainer.test_end(100)
+    assert threshold > 0 and threshold == trainer.threshold
+    assert trainer.threshold_low < trainer.threshold < trainer.threshold_high
+    assert not trainer.add_measure(speechwarp.TrainerMeasure.INTELLIGIBILITY, 2, 8, 10, 0)  # score out of range
+
+
+def test_trainer_settings_and_plans():
+    trainer = speechwarp.ListenerTrainer()
+    assert trainer.get_param(speechwarp.TrainerParam.TARGET) == pytest.approx(0.75)
+    trainer.set_param(speechwarp.TrainerParam.MARGIN, 0.2)
+    assert trainer.get_param(speechwarp.TrainerParam.MARGIN) == pytest.approx(0.2)
+    assert trainer.get_weight(speechwarp.TrainerMeasure.RATING) == pytest.approx(0.3)
+    trainer.set_weight(speechwarp.TrainerMeasure.RATING, 0.5)
+    assert trainer.get_weight(speechwarp.TrainerMeasure.RATING) == 0.5
+    trainer.set_param(speechwarp.TrainerParam.MARGIN, 0.1)
+    # With no data every plan has no effect and no retention.
+    for plan in speechwarp.TrainerPlan:
+        assert trainer.plan_effect(plan) == 0
+        assert math.isnan(trainer.plan_retention(plan)) and math.isnan(trainer.plan_retention_sd(plan))
+        assert trainer.plan_sessions(plan) == 0
+        assert trainer.plan_effect_sd(plan) >= 0
+        assert 0 <= trainer.plan_best_probability(plan) <= 1
+    assert trainer.trend > 0 and trainer.trend_sd >= 0
+    assert trainer.session_rate(0) == 0  # no session
+    trainer.test_begin(10, 0)
+    for step in range(20):
+        rate = trainer.test_rate()
+        trainer.add_measure(speechwarp.TrainerMeasure.VERIFICATION, 0.9 if rate < 12 else 0.55, 6, rate, step)
+    threshold = trainer.test_end(50)
+    trainer.session_begin(speechwarp.TrainerPlan.STEADY, 100)
+    assert trainer.session_rate(100) == pytest.approx(threshold * 1.1, rel=1e-6)
+    assert trainer.session_end(0.5, 3700) >= 0
+    assert trainer.session_end(0.5, 3800) == -1  # no session running
+    trainer.session_begin(speechwarp.TrainerPlan.STEADY, 4000)
+    trainer.test_begin(0, 4100)
+    trainer.add_measure(speechwarp.TrainerMeasure.INTELLIGIBILITY, 0.8, 8, threshold, 4101)
+    trainer.test_end(4200)
+    session = trainer.session_end(1, 4300)
+    assert session >= 0
+    assert trainer.add_retention(session, 0.8, 5, 86400, 90000)
+    assert trainer.plan_sessions(speechwarp.TrainerPlan.STEADY) == 1
+
+
+def test_trainer_is_deterministic():
+    def plans(seed):
+        trainer = speechwarp.ListenerTrainer(seed)
+        return [trainer.next_plan() for _ in range(20)]
+
+    assert plans(5) == plans(5)
+    assert all(isinstance(plan, speechwarp.TrainerPlan) for plan in plans(5))
+    assert plans(5) != plans(6)
+    with pytest.raises(ValueError):
+        speechwarp.ListenerTrainer(-1)
+
+
+def test_blind_trials():
+    trials = speechwarp.BlindTrials(3)
+    assert trials.next(5) is None
+    setting = trials.add_setting()
+    assert setting == 0
+    assert trials.add_value(setting, 0.0) == 0 and trials.add_value(setting, 0.06) == 1
+    assert trials.add_value(setting, 0.06) == -1  # duplicate
+    assert trials.mean_score(setting, 5, 0) is None and trials.winner(setting, 5) is None
+    chosen, first, second = trials.next(5)
+    assert chosen == setting and {first, second} == {0.0, 0.06}
+    for _ in range(4):
+        assert trials.add(setting, 5.5, 0.0, 0.06, 0.6, 0.6, 0)
+    assert trials.add(setting, 5.2, 0.06, 0.0, 0.8, 0.4, -1)
+    assert not trials.add(setting, 5.5, 0.0, 0.5, 0.6, 0.6, 0)  # not a value that was added
+    assert (trials.won(setting, 5, 0), trials.lost(setting, 5, 0), trials.tied(setting, 5, 0)) == (0, 1, 4)
+    assert (trials.won(setting, 5, 1), trials.lost(setting, 5, 1), trials.tied(setting, 5, 1)) == (1, 0, 4)
+    assert trials.heard(setting, 5, 0) == 5
+    assert trials.mean_score(setting, 5, 1) == pytest.approx((0.6 * 4 + 0.8) / 5)
+    assert trials.winner(setting, 5) is None
+    assert trials.heard(setting, 7, 0) == 0  # another band
+    trials.set_available(setting, False)
+    assert trials.next(5) is None
+    trials.set_available(setting, True)
+    trials.set_confidence(0.9)
+
+
+def test_blind_trials_name_a_winner():
+    trials = speechwarp.BlindTrials()
+    setting = trials.add_setting()
+    trials.add_value(setting, 1.0)
+    trials.add_value(setting, 2.0)
+    for _ in range(12):
+        trials.add(setting, 6, 1.0, 2.0, 0.5, 0.9, 1)
+    assert trials.winner(setting, 6) == 1
