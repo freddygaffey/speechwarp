@@ -54,6 +54,31 @@ The same, for the other bindings:
 | Library version | `SpeechwarpStream.libraryVersion` | `version()` | `speechwarp::version()` | `speechwarp.Version()` | `SpeechwarpStream.libraryVersion()` |
 | Speed limits | `minSpeed`, `maxSpeed` | `MIN_SPEED`, `MAX_SPEED` | `MIN_SPEED`, `MAX_SPEED` | `MinSpeed`, `MaxSpeed` | `MIN_SPEED`, `MAX_SPEED` |
 
+## New in 0.3.0
+
+The stream gains two rules that follow the speed, and three new types: a syllable counter on its own, a
+listener trainer and blind trials. The names follow one pattern in every binding, adapted to the language's
+case: snake_case in Python and Rust, PascalCase in C# and Go, camelCase elsewhere.
+
+| | C | C# | Python | Swift / Kotlin / Java / JS / Dart / RN | Rust | Go |
+|---|---|---|---|---|---|---|
+| Heard pause | `speechwarp_set_heard_pause`, `_get_heard_pause`, `_get_heard_pause_from` | `SetHeardPause(s, from)`, `HeardPause`, `HeardPauseFrom` | `set_heard_pause`, `heard_pause`, `heard_pause_from` | `setHeardPause`, `heardPause`, `heardPauseFrom` | `set_heard_pause`, `heard_pause()`, `heard_pause_from()` | `SetHeardPause`, `HeardPause()`, `HeardPauseFrom()` |
+| Floor blend | `speechwarp_set_floor_blend`, `_get_floor_blend`, `_from`, `_full` | `SetFloorBlend(f, from, full)`, `FloorBlend`, `FloorBlendFrom`, `FloorBlendFull` | `set_floor_blend`, `floor_blend`, `floor_blend_from`, `floor_blend_full` | `setFloorBlend`, `floorBlend`, `floorBlendFrom`, `floorBlendFull` | `set_floor_blend`, `floor_blend()`, ... | `SetFloorBlend`, `FloorBlend()`, ... |
+| Syllable counter | `speechwarp_syllables_*` | `SyllableCounter` | `SyllableCounter` | `SyllableCounter` (JS: `createSyllableCounter`) | `SyllableCounter` | `NewSyllableCounter` |
+| Its rate | `_rate(window, minimum)`, negative: not yet | `double? Rate(60, 10)` | `rate()` or `None` | `rate()`, optional | `rate()` → `Option<f64>` | `Rate()` → `(float64, bool)` |
+| Trainer | `speechwarp_trainer_*` | `ListenerTrainer` | `ListenerTrainer` | `ListenerTrainer` (JS: `createListenerTrainer`) | `ListenerTrainer` | `NewListenerTrainer` |
+| Its enums | `SPEECHWARP_MEASURE_*`, `_PLAN_*`, `_PARAM_*` | `TrainerMeasure`, `TrainerPlan`, `TrainerParam` | the same, `IntEnum`, UPPER_CASE members | the same | the same | the same |
+| Blind trials | `speechwarp_trials_*` | `BlindTrials` | `BlindTrials` | `BlindTrials` (JS: `createBlindTrials`) | `BlindTrials` | `NewBlindTrials` |
+| Next trial | `_next` (-1: none), `_next_first`, `_next_second` | `(int Setting, double First, double Second)? Next(speed)` | `next(speed)` → tuple or `None` | `next(speed)` → optional record | `next()` → `Option<Trial>` | `Next()` |
+| Winner | `_winner` (-1: none) | `int? Winner` | `winner()` or `None` | optional | `Option` | `(int, bool)` |
+
+Trainer methods mirror the C functions one for one: `add_measure`, `test_begin`, `test_rate`, `test_done`,
+`test_end`, `threshold` (with `_low`, `_high`), `session_begin`, `session_rate`, `session_end`,
+`add_retention`, `next_plan`, `plan_effect` (with `_sd`), `plan_retention` (with `_sd`), `plan_sessions`,
+`plan_best_probability`, `trend` (with `_sd`), and weights and parameters. Doubles that C returns as NaN stay
+NaN. Seeds are unsigned 64-bit in C, C#, Rust, Go, Swift and Dart, the same bits in a signed `long` in Kotlin
+and Java, and numbers up to 2^53 in React Native, whose module spec has no 64-bit integer.
+
 ## Behaviour common to all
 
 **Create.** Sample rate 4000 to 384000, channels 1 to 32. Starts at speed 1 with nonlinear amount 1.
