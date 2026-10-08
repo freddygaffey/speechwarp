@@ -7,8 +7,10 @@ name: Release React Native
 # Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that tested package to npm.
 # npm trusts this workflow directly ("trusted publishing"), so no token is stored here; the trust is set up on
 # npmjs.com for this repository, this file and the environment `npm`. It can only be set up once the package
-# exists, so the first release (0.3.0) is published by hand with `npm publish`. The tag also publishes the
-# other packages (python.yml, js.yml, release-rust.yml).
+# exists, so the first release uses an access token instead: put a granular token with publish rights in the
+# environment secret NPM_TOKEN, and delete the secret once trusted publishing is set up. While the secret
+# exists it is used. The tag also publishes the other packages (python.yml, js.yml and the other
+# release-*.yml).
 
 on:
   push:
@@ -79,3 +81,5 @@ jobs:
             { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/react-native/package.json"; exit 1; }
       # The tarball the build job tested, so nothing is rebuilt here. Provenance is added automatically.
       - run: npm publish "react-native-speechwarp-${GITHUB_REF_NAME#v}.tgz" --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # empty once trusted publishing is set up
