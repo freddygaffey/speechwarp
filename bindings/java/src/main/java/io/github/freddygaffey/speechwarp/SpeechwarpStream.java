@@ -1,11 +1,5 @@
 package io.github.freddygaffey.speechwarp;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.Locale;
 import java.util.OptionalDouble;
 
 /**
@@ -32,7 +26,7 @@ public final class SpeechwarpStream implements AutoCloseable {
     private long handle;
 
     static {
-        loadNativeLibrary();
+        NativeLibrary.ensureLoaded();
     }
 
     /** Creates a mono stream at speed 1 with nonlinear speed-up on. */
@@ -188,6 +182,56 @@ public final class SpeechwarpStream implements AutoCloseable {
         nativeSetRhythmRate(open(), perSecond);
     }
 
+    public float heardPause() {
+        return nativeGetHeardPause(open());
+    }
+
+    public float heardPauseFrom() {
+        return nativeGetHeardPauseFrom(open());
+    }
+
+    /**
+     * Heard pause: keeps each pause about {@code seconds} long in the output, by setting the pause cap to
+     * {@code seconds} times the current speed (clamped to 0.03 to 0.4 s of input) whenever the speed changes.
+     * Below {@code fromSpeed} pauses are left alone. {@code seconds}: 0 turns the rule off (and the pause cap
+     * with it); otherwise 0.002 to 0.4. {@code fromSpeed}: 1 to 20. Sensible: 0.015 to 0.06 heard, from 3x.
+     * Calling {@link #setPauseCap(float)} turns the rule off ({@link #heardPause()} then returns 0), and {@link
+     * #pauseCap()} always returns the value in force.
+     *
+     * @throws IllegalArgumentException if an argument is not a number
+     */
+    public void setHeardPause(float seconds, float fromSpeed) {
+        nativeSetHeardPause(open(), number("seconds", seconds), number("fromSpeed", fromSpeed));
+    }
+
+    public float floorBlend() {
+        return nativeGetFloorBlend(open());
+    }
+
+    public float floorBlendFrom() {
+        return nativeGetFloorBlendFrom(open());
+    }
+
+    public float floorBlendFull() {
+        return nativeGetFloorBlendFull(open());
+    }
+
+    /**
+     * Floor blend: the speed floor in force is 0 below {@code fromSpeed}, rises linearly to {@code fraction}
+     * at {@code fullSpeed}, and stays at {@code fraction} above it, so that a speed ramp never changes the
+     * sound in a jump. {@code fraction}: 0 turns the rule off (and the floor with it); otherwise up to 1.
+     * Speeds 1 to 20; if {@code fullSpeed} is not above {@code fromSpeed} it is taken as equal, and the floor
+     * steps to {@code fraction} at {@code fromSpeed}. Sensible: 0.5 from 4x, full at 6x. Calling {@link
+     * #setSpeedFloor(float)} turns the rule off ({@link #floorBlend()} then returns 0), and {@link
+     * #speedFloor()} always returns the value in force.
+     *
+     * @throws IllegalArgumentException if an argument is not a number
+     */
+    public void setFloorBlend(float fraction, float fromSpeed, float fullSpeed) {
+        nativeSetFloorBlend(open(), number("fraction", fraction), number("fromSpeed", fromSpeed),
+                number("fullSpeed", fullSpeed));
+    }
+
     /**
      * Syllables a second in the input, pauses included, over about the last 60 s written; empty until 10 s
      * have been written since creation or {@link #reset()}. Multiply by the speed for the rate heard. An
@@ -326,36 +370,6 @@ public final class SpeechwarpStream implements AutoCloseable {
         return length / channels;
     }
 
-    /**
-     * The JAR holds the native library for each system under natives/. Copy this system's to a temporary file
-     * and load it. If it is not in the JAR, fall back to java.library.path, so a library installed some other
-     * way still works.
-     */
-    private static void loadNativeLibrary() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
-        String system = os.contains("mac") ? "macos" : os.contains("win") ? "windows" : "linux";
-        String processor = arch.equals("aarch64") || arch.equals("arm64") ? "arm64" : "x64";
-        String file = system.equals("windows") ? "speechwarp_jni.dll"
-                : system.equals("macos") ? "libspeechwarp_jni.dylib" : "libspeechwarp_jni.so";
-        String resource = "/natives/" + system + "-" + processor + "/" + file;
-
-        try (InputStream in = SpeechwarpStream.class.getResourceAsStream(resource)) {
-            if (in == null) {
-                System.loadLibrary("speechwarp_jni");
-                return;
-            }
-            Path directory = Files.createTempDirectory("speechwarp");
-            Path library = directory.resolve(file);
-            Files.copy(in, library, StandardCopyOption.REPLACE_EXISTING);
-            library.toFile().deleteOnExit();
-            directory.toFile().deleteOnExit();
-            System.load(library.toString());
-        } catch (IOException e) {
-            throw new UnsatisfiedLinkError("speechwarp: could not unpack " + resource + ": " + e);
-        }
-    }
-
     private static native String nativeVersion();
     private static native long nativeCreate(int sampleRate, int channels);
     private static native void nativeDestroy(long handle);
@@ -373,6 +387,13 @@ public final class SpeechwarpStream implements AutoCloseable {
     private static native float nativeGetRhythmGap(long handle);
     private static native void nativeSetRhythmRate(long handle, float value);
     private static native float nativeGetRhythmRate(long handle);
+    private static native void nativeSetHeardPause(long handle, float seconds, float fromSpeed);
+    private static native float nativeGetHeardPause(long handle);
+    private static native float nativeGetHeardPauseFrom(long handle);
+    private static native void nativeSetFloorBlend(long handle, float fraction, float fromSpeed, float fullSpeed);
+    private static native float nativeGetFloorBlend(long handle);
+    private static native float nativeGetFloorBlendFrom(long handle);
+    private static native float nativeGetFloorBlendFull(long handle);
     private static native double nativeSyllableRate(long handle);
     private static native int nativeAvailable(long handle);
     private static native long nativePosition(long handle);

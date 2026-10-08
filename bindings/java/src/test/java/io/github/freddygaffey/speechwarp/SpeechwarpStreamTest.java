@@ -213,4 +213,93 @@ public class SpeechwarpStreamTest {
             assertTrue(stream.syllableRate().isPresent());
         }
     }
+
+    @Test
+    public void heardPauseAndFloorBlendFollowTheSpeed() {
+        try (SpeechwarpStream stream = new SpeechwarpStream(RATE)) {
+            assertEquals(0f, stream.heardPause(), 0);
+            assertEquals(0f, stream.floorBlend(), 0);
+
+            stream.setHeardPause(0.03f, 3f);
+            assertEquals(0.03f, stream.heardPause(), 1e-6f);
+            assertEquals(3f, stream.heardPauseFrom(), 0);
+            stream.setSpeed(2f);
+            assertEquals(0f, stream.pauseCap(), 0);
+            stream.setSpeed(5f);
+            assertEquals(0.15f, stream.pauseCap(), 1e-6f);
+            stream.setSpeed(20f);
+            assertEquals(0.4f, stream.pauseCap(), 1e-6f); // clamped to 0.4 s of input
+
+            stream.setFloorBlend(0.5f, 4f, 6f);
+            assertEquals(0.5f, stream.floorBlend(), 0);
+            assertEquals(4f, stream.floorBlendFrom(), 0);
+            assertEquals(6f, stream.floorBlendFull(), 0);
+            stream.setSpeed(3f);
+            assertEquals(0f, stream.speedFloor(), 0);
+            stream.setSpeed(5f);
+            assertEquals(0.25f, stream.speedFloor(), 1e-6f);
+            stream.setSpeed(8f);
+            assertEquals(0.5f, stream.speedFloor(), 1e-6f);
+
+            // Setting the fixed options turns the rules off: the speed no longer moves them.
+            stream.setPauseCap(0.1f);
+            stream.setSpeedFloor(0.2f);
+            stream.setSpeed(6f);
+            assertEquals(0.1f, stream.pauseCap(), 1e-6f);
+            assertEquals(0.2f, stream.speedFloor(), 1e-6f);
+            assertEquals(0f, stream.heardPause(), 0);
+            assertEquals(0f, stream.floorBlend(), 0);
+
+            stream.setHeardPause(0f, 3f);
+            assertEquals(0f, stream.heardPause(), 0);
+            assertThrows(IllegalArgumentException.class, () -> stream.setHeardPause(Float.NaN, 3f));
+            assertThrows(IllegalArgumentException.class, () -> stream.setFloorBlend(0.5f, Float.NaN, 6f));
+        }
+    }
+
+    @Test
+    public void syllableCounterMatchesTheStream() {
+        float[] input = signal(25, 1);
+        try (SpeechwarpStream stream = new SpeechwarpStream(RATE); SyllableCounter counter = new SyllableCounter(RATE)) {
+            assertFalse(counter.rate().isPresent());
+            int head = RATE * 5;
+            stream.write(input, 0, head);
+            counter.write(input, 0, head);
+            assertFalse(stream.syllableRate().isPresent());
+            assertFalse(counter.rate().isPresent());
+
+            stream.write(input, head, input.length - head);
+            counter.write(input, head, input.length - head);
+            double expected = stream.syllableRate().getAsDouble();
+            assertTrue(expected > 0);
+            assertEquals(expected, counter.rate().getAsDouble(), 0);
+            assertFalse(counter.rate(120, 40).isPresent()); // 25 s written, 40 s needed
+            assertTrue(counter.rate(60, 0).isPresent());
+
+            counter.reset();
+            assertFalse(counter.rate().isPresent());
+        }
+    }
+
+    @Test
+    public void syllableCounterTakesShortsAndChecksArguments() {
+        float[] input = signal(12, 2);
+        short[] shorts = new short[input.length];
+        for (int i = 0; i < input.length; i++) {
+            shorts[i] = (short) (input[i] * 32767);
+        }
+        try (SpeechwarpStream stream = new SpeechwarpStream(RATE, 2); SyllableCounter counter = new SyllableCounter(RATE, 2)) {
+            stream.write(shorts);
+            counter.write(shorts);
+            assertEquals(stream.syllableRate().getAsDouble(), counter.rate().getAsDouble(), 0);
+            assertThrows(IllegalArgumentException.class, () -> counter.write(new float[3]));
+            assertThrows(IndexOutOfBoundsException.class, () -> counter.write(shorts, 2, shorts.length));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new SyllableCounter(100));
+        assertThrows(IllegalArgumentException.class, () -> new SyllableCounter(RATE, 33));
+        SyllableCounter counter = new SyllableCounter(RATE);
+        counter.close();
+        counter.close();
+        assertThrows(IllegalStateException.class, counter::rate);
+    }
 }

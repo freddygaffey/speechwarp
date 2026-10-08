@@ -24,6 +24,7 @@ let package = Package(
             sources: [
                 "src/speechwarp.c",
                 "src/fft.c",
+                "src/trainer.c",
                 "src/third_party_kissfft.c",
                 "src/third_party_sonic.c",
                 "src/third_party_speedy.c",

@@ -199,4 +199,95 @@ class SpeechwarpStreamTest {
             assertNotNull(stream.syllableRate)
         }
     }
+
+    @Test
+    fun heardPauseAndFloorBlendFollowTheSpeed() {
+        SpeechwarpStream(rate).use { stream ->
+            assertEquals(0f, stream.heardPause)
+            assertEquals(0f, stream.floorBlend)
+
+            stream.setHeardPause(0.03f, 3f)
+            assertEquals(0.03f, stream.heardPause, 1e-6f)
+            assertEquals(3f, stream.heardPauseFrom)
+            stream.speed = 2f
+            assertEquals(0f, stream.pauseCap)
+            stream.speed = 5f
+            assertEquals(0.15f, stream.pauseCap, 1e-6f)
+            stream.speed = 20f
+            assertEquals(0.4f, stream.pauseCap, 1e-6f) // clamped to 0.4 s of input
+
+            stream.setFloorBlend(0.5f, 4f, 6f)
+            assertEquals(0.5f, stream.floorBlend)
+            assertEquals(4f, stream.floorBlendFrom)
+            assertEquals(6f, stream.floorBlendFull)
+            stream.speed = 3f
+            assertEquals(0f, stream.speedFloor)
+            stream.speed = 5f
+            assertEquals(0.25f, stream.speedFloor, 1e-6f)
+            stream.speed = 8f
+            assertEquals(0.5f, stream.speedFloor, 1e-6f)
+
+            // Setting the fixed options turns the rules off: the speed no longer moves them.
+            stream.pauseCap = 0.1f
+            stream.speedFloor = 0.2f
+            stream.speed = 6f
+            assertEquals(0.1f, stream.pauseCap, 1e-6f)
+            assertEquals(0.2f, stream.speedFloor, 1e-6f)
+            assertEquals(0f, stream.heardPause)
+            assertEquals(0f, stream.floorBlend)
+
+            stream.setHeardPause(0f, 3f)
+            assertEquals(0f, stream.heardPause)
+            assertThrows(IllegalArgumentException::class.java) { stream.setHeardPause(Float.NaN, 3f) }
+            assertThrows(IllegalArgumentException::class.java) { stream.setFloorBlend(0.5f, Float.NaN, 6f) }
+        }
+    }
+
+    @Test
+    fun syllableCounterMatchesTheStream() {
+        val input = signal(25.0)
+        SpeechwarpStream(rate).use { stream ->
+            SyllableCounter(rate).use { counter ->
+                assertNull(counter.rate())
+                val head = rate * 5
+                stream.write(input, 0, head)
+                counter.write(input, 0, head)
+                assertNull(stream.syllableRate)
+                assertNull(counter.rate())
+
+                stream.write(input, head, input.size - head)
+                counter.write(input, head, input.size - head)
+                val expected = stream.syllableRate!!
+                assertTrue(expected > 0)
+                assertEquals(expected, counter.rate()!!, 0.0)
+                // A minimum longer than what was written gives nothing; a short one gives a number.
+                assertNull(counter.rate(120.0, 40.0)) // 25 s written, 40 s needed
+                assertNotNull(counter.rate(60.0, 0.0))
+
+                counter.reset()
+                assertNull(counter.rate())
+            }
+        }
+    }
+
+    @Test
+    fun syllableCounterTakesShortsAndChecksArguments() {
+        val input = signal(12.0, channels = 2)
+        val shorts = ShortArray(input.size) { (input[it] * 32767).toInt().toShort() }
+        SpeechwarpStream(rate, 2).use { stream ->
+            SyllableCounter(rate, 2).use { counter ->
+                stream.write(shorts)
+                counter.write(shorts)
+                assertEquals(stream.syllableRate!!, counter.rate()!!, 0.0)
+                assertThrows(IllegalArgumentException::class.java) { counter.write(FloatArray(3)) }
+                assertThrows(IndexOutOfBoundsException::class.java) { counter.write(shorts, 2, shorts.size) }
+            }
+        }
+        assertThrows(IllegalArgumentException::class.java) { SyllableCounter(100) }
+        assertThrows(IllegalArgumentException::class.java) { SyllableCounter(rate, 33) }
+        val counter = SyllableCounter(rate)
+        counter.close()
+        counter.close()
+        assertThrows(IllegalStateException::class.java) { counter.rate() }
+    }
 }

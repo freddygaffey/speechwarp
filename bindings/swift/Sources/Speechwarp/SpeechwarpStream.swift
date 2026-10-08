@@ -103,6 +103,43 @@ public final class SpeechwarpStream {
         set { speechwarp_set_rhythm_rate(stream, newValue) }
     }
 
+    // Options that follow the speed. Off by default; they set `pauseCap` and `speedFloor` again whenever the
+    // speed changes. Setting the fixed option turns the rule off. NaN is ignored and other values are clamped.
+
+    /// Heard pause: keeps each pause about `seconds` long in the output, by setting `pauseCap` to `seconds` times
+    /// the current speed (clamped to 0.03 to 0.4 s of input) whenever the speed changes. Below `fromSpeed`
+    /// pauses are left alone. `seconds`: 0 turns the rule off (and the pause cap with it); otherwise 0.002 to
+    /// 0.4. `fromSpeed`: 1 to 20. Sensible: 0.015 to 0.06 heard, from 3x. Setting `pauseCap` turns the rule off
+    /// (`heardPause` then reads 0); `pauseCap` reads the value in force.
+    public func setHeardPause(_ seconds: Float, fromSpeed: Float) {
+        speechwarp_set_heard_pause(stream, seconds, fromSpeed)
+    }
+
+    /// The heard pause last set with `setHeardPause`, in seconds; 0 if the rule is off.
+    public var heardPause: Float { speechwarp_get_heard_pause(stream) }
+
+    /// The speed from which `setHeardPause` applies, as last set.
+    public var heardPauseFrom: Float { speechwarp_get_heard_pause_from(stream) }
+
+    /// Floor blend: the speed floor in force is 0 below `fromSpeed`, rises linearly to `fraction` at `fullSpeed`,
+    /// and stays at `fraction` above it, so that a speed ramp never changes the sound in a jump. `fraction`: 0
+    /// turns the rule off (and the floor with it); otherwise up to 1. Speeds 1 to 20; if `fullSpeed` is not above
+    /// `fromSpeed` it is taken as equal, and the floor steps to `fraction` at `fromSpeed`. Sensible: 0.5 from 4x,
+    /// full at 6x. Setting `speedFloor` turns the rule off (`floorBlend` then reads 0); `speedFloor` reads the
+    /// value in force.
+    public func setFloorBlend(_ fraction: Float, fromSpeed: Float, fullSpeed: Float) {
+        speechwarp_set_floor_blend(stream, fraction, fromSpeed, fullSpeed)
+    }
+
+    /// The floor fraction last set with `setFloorBlend`; 0 if the rule is off.
+    public var floorBlend: Float { speechwarp_get_floor_blend(stream) }
+
+    /// The speed from which the floor blend starts, as last set.
+    public var floorBlendFrom: Float { speechwarp_get_floor_blend_from(stream) }
+
+    /// The speed at which the floor blend reaches its full fraction, as last set.
+    public var floorBlendFull: Float { speechwarp_get_floor_blend_full(stream) }
+
     /// Syllables a second in the input, pauses included, over about the last 60 s written; nil until 10 s have
     /// been written since creation or `reset()`. Multiply by the speed for the rate heard. An estimate, typically
     /// within about 10%.

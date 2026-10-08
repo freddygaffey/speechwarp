@@ -9,6 +9,7 @@ add_library(speechwarp_jni SHARED
   speechwarp_jni.c
   ${root}/src/speechwarp.c
   ${root}/src/fft.c
+  ${root}/src/trainer.c
   ${root}/src/third_party_kissfft.c
   ${root}/src/third_party_sonic.c
   ${root}/src/third_party_speedy.c)

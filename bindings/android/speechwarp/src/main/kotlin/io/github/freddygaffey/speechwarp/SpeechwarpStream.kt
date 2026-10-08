@@ -105,6 +105,57 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
             nativeSetRhythmRate(open(), value)
         }
 
+    // Options that follow the speed. Off by default; they set the pause cap and speed floor again whenever the
+    // speed changes. Setting the fixed option turns the rule off. NaN is rejected here; the C library ignores it.
+
+    /**
+     * Heard pause: keeps each pause about [seconds] long in the output, by setting the pause cap to [seconds]
+     * times the current speed (clamped to 0.03 to 0.4 s of input) whenever the speed changes. Below [fromSpeed]
+     * pauses are left alone. [seconds]: 0 turns the rule off (and the pause cap with it); otherwise 0.002 to
+     * 0.4. [fromSpeed]: 1 to 20. Sensible: 0.015 to 0.06 heard, from 3x. Setting [pauseCap] turns the rule off
+     * (and [heardPause] reads 0); [pauseCap] reads the value in force.
+     */
+    fun setHeardPause(seconds: Float, fromSpeed: Float) {
+        require(!seconds.isNaN()) { "seconds must be a number" }
+        require(!fromSpeed.isNaN()) { "fromSpeed must be a number" }
+        nativeSetHeardPause(open(), seconds, fromSpeed)
+    }
+
+    /** The heard pause last set with [setHeardPause], in seconds; 0 if the rule is off. */
+    val heardPause: Float
+        get() = nativeGetHeardPause(open())
+
+    /** The speed from which [setHeardPause] applies, as last set. */
+    val heardPauseFrom: Float
+        get() = nativeGetHeardPauseFrom(open())
+
+    /**
+     * Floor blend: the speed floor in force is 0 below [fromSpeed], rises linearly to [fraction] at [fullSpeed],
+     * and stays at [fraction] above it, so that a speed ramp never changes the sound in a jump. [fraction]: 0
+     * turns the rule off (and the floor with it); otherwise up to 1. Speeds 1 to 20; if [fullSpeed] is not above
+     * [fromSpeed] it is taken as equal, and the floor steps to [fraction] at [fromSpeed]. Sensible: 0.5 from 4x,
+     * full at 6x. Setting [speedFloor] turns the rule off
+     * (and [floorBlend] reads 0); [speedFloor] reads the value in force.
+     */
+    fun setFloorBlend(fraction: Float, fromSpeed: Float, fullSpeed: Float) {
+        require(!fraction.isNaN()) { "fraction must be a number" }
+        require(!fromSpeed.isNaN()) { "fromSpeed must be a number" }
+        require(!fullSpeed.isNaN()) { "fullSpeed must be a number" }
+        nativeSetFloorBlend(open(), fraction, fromSpeed, fullSpeed)
+    }
+
+    /** The floor fraction last set with [setFloorBlend]; 0 if the rule is off. */
+    val floorBlend: Float
+        get() = nativeGetFloorBlend(open())
+
+    /** The speed from which the floor blend starts, as last set. */
+    val floorBlendFrom: Float
+        get() = nativeGetFloorBlendFrom(open())
+
+    /** The speed at which the floor blend reaches its full fraction, as last set. */
+    val floorBlendFull: Float
+        get() = nativeGetFloorBlendFull(open())
+
     /**
      * Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
      * been written since creation or [reset]. Multiply by the speed for the rate heard. An estimate, typically
@@ -234,6 +285,13 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
         @JvmStatic private external fun nativeGetRhythmGap(handle: Long): Float
         @JvmStatic private external fun nativeSetRhythmRate(handle: Long, value: Float)
         @JvmStatic private external fun nativeGetRhythmRate(handle: Long): Float
+        @JvmStatic private external fun nativeSetHeardPause(handle: Long, seconds: Float, fromSpeed: Float)
+        @JvmStatic private external fun nativeGetHeardPause(handle: Long): Float
+        @JvmStatic private external fun nativeGetHeardPauseFrom(handle: Long): Float
+        @JvmStatic private external fun nativeSetFloorBlend(handle: Long, fraction: Float, fromSpeed: Float, fullSpeed: Float)
+        @JvmStatic private external fun nativeGetFloorBlend(handle: Long): Float
+        @JvmStatic private external fun nativeGetFloorBlendFrom(handle: Long): Float
+        @JvmStatic private external fun nativeGetFloorBlendFull(handle: Long): Float
         @JvmStatic private external fun nativeSyllableRate(handle: Long): Double
         @JvmStatic private external fun nativeAvailable(handle: Long): Int
         @JvmStatic private external fun nativePosition(handle: Long): Long
