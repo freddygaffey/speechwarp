@@ -34,6 +34,12 @@ static void usage(FILE* to) {
           "  for very high speeds (all off by default):\n"
           "  --pause-cap S      shorten every pause to at most S seconds, e.g. 0.06\n"
           "  --floor F          no speech slower than F times the speed, 0 to 1, e.g. 0.5\n"
+          "  --heard-pause S[@FROM]\n"
+          "                     keep each pause about S seconds long as heard, e.g. 0.03, from speed FROM\n"
+          "                     up (default 3); the pause cap is then S times the speed. Replaces --pause-cap\n"
+          "  --floor-blend F@FROM-FULL\n"
+          "                     the speed floor rises from 0 at speed FROM to F at speed FULL, e.g. 0.5@4-6\n"
+          "                     (FULL is optional: F@FROM steps at FROM). Replaces --floor\n"
           "  --rhythm-gap S     put an S-second silence in the output at a regular rate, e.g. 0.04\n"
           "  --rhythm-rate N    gaps a second (default 5)\n"
           "  --no-keep-speed    let trimmed pauses and gaps change the overall speed\n"
@@ -188,6 +194,7 @@ int main(int argc, char** argv) {
   const char* paths[2];
   const char* error;
   double speed = 2, nonlinear = 1, pause_cap = 0, speed_floor = 0, rhythm_gap = 0, rhythm_rate = 5;
+  double heard_pause = 0, heard_from = 3, blend = 0, blend_from = 1, blend_full = 1;
   int keep_speed = 1;
   int path_count = 0, verbose = 0, i, frames;
   long frames_in = 0, frames_out = 0, written;
@@ -216,6 +223,18 @@ int main(int argc, char** argv) {
       pause_cap = atof(argv[++i]);
     } else if (!strcmp(arg, "--floor") && has_value) {
       speed_floor = atof(argv[++i]);
+    } else if (!strcmp(arg, "--heard-pause") && has_value) {
+      heard_from = 3;
+      if (sscanf(argv[++i], "%lf@%lf", &heard_pause, &heard_from) < 1) {
+        heard_pause = -1;
+      }
+    } else if (!strcmp(arg, "--floor-blend") && has_value) {
+      int parts = sscanf(argv[++i], "%lf@%lf-%lf", &blend, &blend_from, &blend_full);
+      if (parts < 2) {
+        blend = -1;
+      } else if (parts == 2) {
+        blend_full = blend_from;
+      }
     } else if (!strcmp(arg, "--rhythm-gap") && has_value) {
       rhythm_gap = atof(argv[++i]);
     } else if (!strcmp(arg, "--rhythm-rate") && has_value) {
@@ -253,6 +272,15 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  if (!(heard_pause >= 0 && heard_pause <= 0.4 && heard_from >= 1 && heard_from <= SPEECHWARP_MAX_SPEED) ||
+      !(blend >= 0 && blend <= 1 && blend_from >= 1 && blend_from <= SPEECHWARP_MAX_SPEED && blend_full >= 1 &&
+        blend_full <= SPEECHWARP_MAX_SPEED)) {
+    fprintf(stderr, "speechwarp: --heard-pause must be S[@FROM] with S 0 to 0.4 and FROM 1 to %g, and "
+                    "--floor-blend F@FROM-FULL with F 0 to 1 and the speeds 1 to %g\n",
+            (double)SPEECHWARP_MAX_SPEED, (double)SPEECHWARP_MAX_SPEED);
+    return 2;
+  }
+
   memset(&wav, 0, sizeof wav);
   error = open_wav(&wav, paths[0]);
   if (error) {
@@ -269,6 +297,12 @@ int main(int argc, char** argv) {
   speechwarp_set_nonlinear(stream, (float)nonlinear);
   speechwarp_set_pause_cap(stream, (float)pause_cap);
   speechwarp_set_speed_floor(stream, (float)speed_floor);
+  if (heard_pause > 0) {
+    speechwarp_set_heard_pause(stream, (float)heard_pause, (float)heard_from);
+  }
+  if (blend > 0) {
+    speechwarp_set_floor_blend(stream, (float)blend, (float)blend_from, (float)blend_full);
+  }
   speechwarp_set_rhythm_gap(stream, (float)rhythm_gap);
   speechwarp_set_rhythm_rate(stream, (float)rhythm_rate);
   speechwarp_set_keep_speed(stream, keep_speed);

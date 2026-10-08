@@ -50,6 +50,11 @@
 #define SPEECH_LEVEL_DECAY_DB 0.5
 #define MIN_PAUSE_CAP 0.01f
 #define MAX_PAUSE_CAP 1.0f
+/* The rules that follow the speed (heard pause and floor blend). */
+#define MIN_HEARD_PAUSE 0.002f
+#define MAX_HEARD_PAUSE 0.4f
+#define MIN_RULE_CAP 0.03f
+#define MAX_RULE_CAP 0.4f
 
 /* Rhythm. Gaps are placed at the quietest point within this fraction of a chunk either side of where the
  * regular rate puts them, and faded in and out over FADE_TIME seconds. */
@@ -63,8 +68,9 @@
 
 /* The syllable counter (see the section of that name). */
 #define SYLLABLE_SMOOTHING 4
-#define SYLLABLE_HISTORY 1024 /* more than a minute at the fastest rate it can count */
-#define SYLLABLE_WINDOW 60.0
+#define SYLLABLE_HISTORY 2048 /* the longest window (two minutes) at the fastest rate it can count */
+#define SYLLABLE_MAX_WINDOW 120.0
+#define SYLLABLE_WINDOW 60.0 /* what speechwarp_syllable_rate uses */
 #define SYLLABLE_MINIMUM 10.0
 
 /* After `in` frames of input had been given to Sonic, `out` frames of output had been produced. `in` counts
@@ -130,6 +136,13 @@ struct speechwarp_stream {
   float pause_cap;
   int keep_speed;
   float speed_floor;
+  /* The rules that follow the speed. A rule is on while its first number is above 0, and then it decides
+   * pause_cap or speed_floor each time the speed changes. */
+  float heard_pause;
+  float heard_from;
+  float blend_fraction;
+  float blend_from;
+  float blend_full;
   float rhythm_gap;
   float rhythm_rate;
 
@@ -298,7 +311,7 @@ static void syllables_reset(syllable_counter* c, int sample_rate) {
 }
 
 static void syllables_found(syllable_counter* c, int64_t at) {
-  int64_t oldest = c->analysed - (int64_t)(SYLLABLE_WINDOW * c->sample_rate);
+  int64_t oldest = c->analysed - (int64_t)(SYLLABLE_MAX_WINDOW * c->sample_rate);
   while (c->found_count > 0 && c->found[c->found_head] < oldest) {
     c->found_head = (c->found_head + 1) % SYLLABLE_HISTORY;
     c->found_count--;
@@ -388,13 +401,19 @@ static void syllables_write(syllable_counter* c, const int16_t* in, int frames, 
   }
 }
 
-static double syllables_rate(const syllable_counter* c) {
+static double syllables_rate(const syllable_counter* c, double window, double minimum) {
   double analysed = (double)c->analysed / c->sample_rate;
-  double span = analysed < SYLLABLE_WINDOW ? analysed : SYLLABLE_WINDOW;
-  int64_t from = c->analysed - (int64_t)(span * c->sample_rate);
+  double span;
+  int64_t from;
   int count = 0, i;
 
-  if (analysed < SYLLABLE_MINIMUM) {
+  if (!(window >= 1)) window = 1;
+  if (window > SYLLABLE_MAX_WINDOW) window = SYLLABLE_MAX_WINDOW;
+  if (!(minimum >= 0)) minimum = 0;
+  if (minimum > window) minimum = window;
+  span = analysed < window ? analysed : window;
+  from = c->analysed - (int64_t)(span * c->sample_rate);
+  if (analysed < minimum || span <= 0) {
     return -1;
   }
   for (i = 0; i < c->found_count; i++) {
@@ -944,6 +963,9 @@ speechwarp_stream* speechwarp_create(int sample_rate, int channels) {
   s->analysing = 1;
   s->correction = 1;
   s->keep_speed = 1;
+  s->heard_from = 1;
+  s->blend_from = 1;
+  s->blend_full = 1;
   s->rhythm_rate = DEFAULT_RHYTHM_RATE;
   if (!create_engines(s)) {
     free(s);
@@ -987,6 +1009,8 @@ void speechwarp_destroy(speechwarp_stream* stream) {
   free(stream);
 }
 
+static void apply_rules(speechwarp_stream* stream);
+
 void speechwarp_set_speed(speechwarp_stream* stream, float speed) {
   if (!stream || !(speed > 0)) {
     return;
@@ -995,6 +1019,7 @@ void speechwarp_set_speed(speechwarp_stream* stream, float speed) {
   if (speed > SPEECHWARP_MAX_SPEED) speed = SPEECHWARP_MAX_SPEED;
   if (speed != stream->speed) {
     stream->speed = speed;
+    apply_rules(stream);
     start_correction(stream);
   }
   if (stream->sonic) {
@@ -1028,11 +1053,9 @@ void speechwarp_set_nonlinear(speechwarp_stream* stream, float amount) {
 
 float speechwarp_get_nonlinear(const speechwarp_stream* stream) { return stream ? stream->nonlinear : 0; }
 
-void speechwarp_set_pause_cap(speechwarp_stream* stream, float seconds) {
+/* Put a pause cap in force, growing the tail buffer if it needs to. Shared by the fixed setter and the rule. */
+static void apply_pause_cap(speechwarp_stream* stream, float seconds) {
   int blocks;
-  if (!stream || seconds != seconds) {
-    return;
-  }
   if (seconds <= 0) {
     stream->pause_cap = 0;
     return;
@@ -1054,6 +1077,59 @@ void speechwarp_set_pause_cap(speechwarp_stream* stream, float seconds) {
   }
 }
 
+/* Work out what the rules give at the current speed, and put it in force. */
+static void apply_rules(speechwarp_stream* stream) {
+  float speed = stream->speed;
+  if (stream->heard_pause > 0) {
+    float cap = 0;
+    if (speed >= stream->heard_from) {
+      cap = stream->heard_pause * speed;
+      if (cap < MIN_RULE_CAP) cap = MIN_RULE_CAP;
+      if (cap > MAX_RULE_CAP) cap = MAX_RULE_CAP;
+    }
+    apply_pause_cap(stream, cap);
+  }
+  if (stream->blend_fraction > 0) {
+    float floor = stream->blend_fraction;
+    if (speed < stream->blend_from) {
+      floor = 0;
+    } else if (speed < stream->blend_full) {
+      floor *= (speed - stream->blend_from) / (stream->blend_full - stream->blend_from);
+    }
+    stream->speed_floor = floor;
+  }
+}
+
+void speechwarp_set_pause_cap(speechwarp_stream* stream, float seconds) {
+  if (!stream || seconds != seconds) {
+    return;
+  }
+  stream->heard_pause = 0;
+  apply_pause_cap(stream, seconds);
+}
+
+void speechwarp_set_heard_pause(speechwarp_stream* stream, float seconds, float from_speed) {
+  if (!stream || seconds != seconds || from_speed != from_speed) {
+    return;
+  }
+  if (from_speed < 1) from_speed = 1;
+  if (from_speed > SPEECHWARP_MAX_SPEED) from_speed = SPEECHWARP_MAX_SPEED;
+  stream->heard_from = from_speed;
+  if (seconds <= 0) {
+    stream->heard_pause = 0;
+    apply_pause_cap(stream, 0);
+    return;
+  }
+  if (seconds < MIN_HEARD_PAUSE) seconds = MIN_HEARD_PAUSE;
+  if (seconds > MAX_HEARD_PAUSE) seconds = MAX_HEARD_PAUSE;
+  stream->heard_pause = seconds;
+  apply_rules(stream);
+}
+
+float speechwarp_get_heard_pause(const speechwarp_stream* stream) { return stream ? stream->heard_pause : 0; }
+
+float speechwarp_get_heard_pause_from(const speechwarp_stream* stream) { return stream ? stream->heard_from : 0; }
+
 float speechwarp_get_pause_cap(const speechwarp_stream* stream) { return stream ? stream->pause_cap : 0; }
 
 void speechwarp_set_keep_speed(speechwarp_stream* stream, int enabled) {
@@ -1071,8 +1147,35 @@ void speechwarp_set_speed_floor(speechwarp_stream* stream, float fraction) {
   }
   if (fraction < 0) fraction = 0;
   if (fraction > 1) fraction = 1;
+  stream->blend_fraction = 0;
   stream->speed_floor = fraction;
 }
+
+void speechwarp_set_floor_blend(speechwarp_stream* stream, float fraction, float from_speed, float full_speed) {
+  if (!stream || fraction != fraction || from_speed != from_speed || full_speed != full_speed) {
+    return;
+  }
+  if (from_speed < 1) from_speed = 1;
+  if (from_speed > SPEECHWARP_MAX_SPEED) from_speed = SPEECHWARP_MAX_SPEED;
+  if (full_speed < from_speed) full_speed = from_speed;
+  if (full_speed > SPEECHWARP_MAX_SPEED) full_speed = SPEECHWARP_MAX_SPEED;
+  stream->blend_from = from_speed;
+  stream->blend_full = full_speed;
+  if (fraction <= 0) {
+    stream->blend_fraction = 0;
+    stream->speed_floor = 0;
+    return;
+  }
+  if (fraction > 1) fraction = 1;
+  stream->blend_fraction = fraction;
+  apply_rules(stream);
+}
+
+float speechwarp_get_floor_blend(const speechwarp_stream* stream) { return stream ? stream->blend_fraction : 0; }
+
+float speechwarp_get_floor_blend_from(const speechwarp_stream* stream) { return stream ? stream->blend_from : 0; }
+
+float speechwarp_get_floor_blend_full(const speechwarp_stream* stream) { return stream ? stream->blend_full : 0; }
 
 float speechwarp_get_speed_floor(const speechwarp_stream* stream) { return stream ? stream->speed_floor : 0; }
 
@@ -1109,7 +1212,7 @@ void speechwarp_set_rhythm_rate(speechwarp_stream* stream, float per_second) {
 float speechwarp_get_rhythm_rate(const speechwarp_stream* stream) { return stream ? stream->rhythm_rate : 0; }
 
 double speechwarp_syllable_rate(const speechwarp_stream* stream) {
-  return stream ? syllables_rate(&stream->syllables) : -1;
+  return stream ? syllables_rate(&stream->syllables, SYLLABLE_WINDOW, SYLLABLE_MINIMUM) : -1;
 }
 
 static int16_t float_to_i16(float x) {
@@ -1156,6 +1259,70 @@ int speechwarp_write(speechwarp_stream* stream, const float* samples, int frames
 
 int speechwarp_write_i16(speechwarp_stream* stream, const int16_t* samples, int frames) {
   return write_frames(stream, NULL, samples, frames);
+}
+
+/* ---- The syllable counter on its own ---------------------------------------------------------------- */
+
+struct speechwarp_syllables {
+  int channels;
+  syllable_counter counter;
+};
+
+speechwarp_syllables* speechwarp_syllables_create(int sample_rate, int channels) {
+  speechwarp_syllables* c;
+  if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE || channels < SONIC_MIN_CHANNELS ||
+      channels > SONIC_MAX_CHANNELS) {
+    return NULL;
+  }
+  c = (speechwarp_syllables*)malloc(sizeof(*c));
+  if (!c) {
+    return NULL;
+  }
+  c->channels = channels;
+  syllables_reset(&c->counter, sample_rate);
+  return c;
+}
+
+void speechwarp_syllables_destroy(speechwarp_syllables* counter) { free(counter); }
+
+int speechwarp_syllables_write_i16(speechwarp_syllables* counter, const int16_t* samples, int frames) {
+  if (!counter || frames < 0 || (frames > 0 && !samples)) {
+    return 0;
+  }
+  syllables_write(&counter->counter, samples, frames, counter->channels);
+  return 1;
+}
+
+int speechwarp_syllables_write(speechwarp_syllables* counter, const float* samples, int frames) {
+  int16_t converted[1024];
+  int per_piece;
+
+  if (!counter || frames < 0 || (frames > 0 && !samples)) {
+    return 0;
+  }
+  per_piece = (int)(sizeof(converted) / sizeof(converted[0])) / counter->channels;
+  while (frames > 0) {
+    int take = frames < per_piece ? frames : per_piece;
+    int count = take * counter->channels, i;
+    for (i = 0; i < count; i++) {
+      converted[i] = float_to_i16(samples[i]);
+    }
+    syllables_write(&counter->counter, converted, take, counter->channels);
+    samples += count;
+    frames -= take;
+  }
+  return 1;
+}
+
+double speechwarp_syllables_rate(const speechwarp_syllables* counter, double window_seconds,
+                                 double minimum_seconds) {
+  return counter ? syllables_rate(&counter->counter, window_seconds, minimum_seconds) : -1;
+}
+
+void speechwarp_syllables_reset(speechwarp_syllables* counter) {
+  if (counter) {
+    syllables_reset(&counter->counter, counter->counter.sample_rate);
+  }
 }
 
 /* Count `frames` frames read from `ready`, of which those inside gaps came from no input. */

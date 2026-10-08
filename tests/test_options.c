@@ -431,6 +431,349 @@ static void test_syllable_rate(void) {
   }
 }
 
+/* ---- The rules that follow the speed ---- */
+
+static int near(double a, double b) { return fabs(a - b) < 1e-5; }
+
+static void test_heard_pause_rule(void) {
+  speechwarp_stream* s = speechwarp_create(RATE, 1);
+  static const float speeds[] = {1, 2.9f, 3, 4, 5, 7.5f, 12, 13.4f, 20};
+  static const float caps[] = {0, 0, 0.09f, 0.12f, 0.15f, 0.225f, 0.36f, 0.4f, 0.4f};
+  int k;
+
+  CHECK(speechwarp_get_heard_pause(s) == 0);
+  speechwarp_set_heard_pause(s, 0.03f, 3);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.03));
+  CHECK(near(speechwarp_get_heard_pause_from(s), 3));
+  for (k = 0; k < 9; k++) {
+    speechwarp_set_speed(s, speeds[k]);
+    CHECK(near(speechwarp_get_pause_cap(s), caps[k]));
+  }
+
+  /* A very short heard pause is held to the 0.03 s minimum cap, and the arguments are clamped. */
+  speechwarp_set_heard_pause(s, 0.002f, 1);
+  speechwarp_set_speed(s, 4);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.03));
+  speechwarp_set_heard_pause(s, 5, 99);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.4));
+  CHECK(near(speechwarp_get_heard_pause_from(s), 20));
+  speechwarp_set_speed(s, 20);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.4));
+  speechwarp_set_heard_pause(s, 0.0001f, 0);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.002));
+  CHECK(near(speechwarp_get_heard_pause_from(s), 1));
+
+  /* NaN is ignored. */
+  speechwarp_set_heard_pause(s, 0.03f, 3);
+  speechwarp_set_heard_pause(s, NAN, 5);
+  speechwarp_set_heard_pause(s, 0.1f, NAN);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.03));
+  CHECK(near(speechwarp_get_heard_pause_from(s), 3));
+
+  /* Zero turns the rule off, and the pause cap with it. */
+  speechwarp_set_speed(s, 6);
+  CHECK(speechwarp_get_pause_cap(s) > 0);
+  speechwarp_set_heard_pause(s, 0, 3);
+  CHECK(speechwarp_get_heard_pause(s) == 0);
+  CHECK(speechwarp_get_pause_cap(s) == 0);
+  speechwarp_set_speed(s, 7);
+  CHECK(speechwarp_get_pause_cap(s) == 0);
+  speechwarp_destroy(s);
+}
+
+static void test_floor_blend_rule(void) {
+  speechwarp_stream* s = speechwarp_create(RATE, 1);
+  static const float speeds[] = {1, 3, 4, 5, 5.5f, 6, 8, 20};
+  static const float floors[] = {0, 0, 0, 0.25f, 0.375f, 0.5f, 0.5f, 0.5f};
+  int k;
+
+  speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  CHECK(near(speechwarp_get_floor_blend(s), 0.5));
+  CHECK(near(speechwarp_get_floor_blend_from(s), 4));
+  CHECK(near(speechwarp_get_floor_blend_full(s), 6));
+  for (k = 0; k < 8; k++) {
+    speechwarp_set_speed(s, speeds[k]);
+    CHECK(near(speechwarp_get_speed_floor(s), floors[k]));
+  }
+
+  /* A full speed that is not above the from speed makes a step. */
+  speechwarp_set_floor_blend(s, 0.6f, 4, 4);
+  CHECK(near(speechwarp_get_floor_blend_full(s), 4));
+  speechwarp_set_speed(s, 3.9f);
+  CHECK(speechwarp_get_speed_floor(s) == 0);
+  speechwarp_set_speed(s, 4);
+  CHECK(near(speechwarp_get_speed_floor(s), 0.6));
+  speechwarp_set_speed(s, 9);
+  CHECK(near(speechwarp_get_speed_floor(s), 0.6));
+  speechwarp_set_floor_blend(s, 0.6f, 5, 2);
+  CHECK(near(speechwarp_get_floor_blend_full(s), 5));
+
+  /* Clamps and NaN. */
+  speechwarp_set_floor_blend(s, 3, 0, 99);
+  CHECK(near(speechwarp_get_floor_blend(s), 1));
+  CHECK(near(speechwarp_get_floor_blend_from(s), 1));
+  CHECK(near(speechwarp_get_floor_blend_full(s), 20));
+  speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  speechwarp_set_floor_blend(s, NAN, 1, 2);
+  speechwarp_set_floor_blend(s, 0.1f, NAN, 2);
+  speechwarp_set_floor_blend(s, 0.1f, 1, NAN);
+  CHECK(near(speechwarp_get_floor_blend(s), 0.5));
+  CHECK(near(speechwarp_get_floor_blend_from(s), 4));
+  CHECK(near(speechwarp_get_floor_blend_full(s), 6));
+
+  /* Zero turns the rule off, and the floor with it. */
+  speechwarp_set_speed(s, 8);
+  CHECK(speechwarp_get_speed_floor(s) > 0);
+  speechwarp_set_floor_blend(s, 0, 4, 6);
+  CHECK(speechwarp_get_floor_blend(s) == 0);
+  CHECK(speechwarp_get_speed_floor(s) == 0);
+  speechwarp_destroy(s);
+}
+
+static void test_fixed_and_rules_replace_each_other(void) {
+  speechwarp_stream* s = speechwarp_create(RATE, 1);
+
+  speechwarp_set_heard_pause(s, 0.03f, 3);
+  speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  speechwarp_set_speed(s, 5);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.15));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.25));
+
+  /* A fixed value turns its rule off and then stays put as the speed moves. */
+  speechwarp_set_pause_cap(s, 0.2f);
+  speechwarp_set_speed_floor(s, 0.3f);
+  CHECK(speechwarp_get_heard_pause(s) == 0);
+  CHECK(speechwarp_get_floor_blend(s) == 0);
+  speechwarp_set_speed(s, 8);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.2));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.3));
+
+  /* And a rule replaces the fixed value at once. */
+  speechwarp_set_heard_pause(s, 0.03f, 3);
+  speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.24));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.5));
+  speechwarp_set_speed(s, 5);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.15));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.25));
+
+  /* NaN to the fixed setters leaves the rules on. */
+  speechwarp_set_pause_cap(s, NAN);
+  speechwarp_set_speed_floor(s, NAN);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.03));
+  CHECK(near(speechwarp_get_floor_blend(s), 0.5));
+
+  /* Reset keeps the rules and what they gave. */
+  speechwarp_reset(s);
+  CHECK(near(speechwarp_get_heard_pause(s), 0.03));
+  CHECK(near(speechwarp_get_heard_pause_from(s), 3));
+  CHECK(near(speechwarp_get_floor_blend(s), 0.5));
+  CHECK(near(speechwarp_get_floor_blend_full(s), 6));
+  CHECK(near(speechwarp_get_pause_cap(s), 0.15));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.25));
+  speechwarp_set_speed(s, 6);
+  CHECK(near(speechwarp_get_pause_cap(s), 0.18));
+  CHECK(near(speechwarp_get_speed_floor(s), 0.5));
+  speechwarp_destroy(s);
+}
+
+static void test_ramp_is_continuous(void) {
+  speechwarp_stream* s = speechwarp_create(RATE, 1);
+  double previous_floor = 0, previous_cap = 0;
+  int k;
+
+  speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  speechwarp_set_heard_pause(s, 0.03f, 3);
+  for (k = 10; k <= 80; k++) {
+    double speed = k / 10.0, floor, cap;
+    speechwarp_set_speed(s, (float)speed);
+    floor = speechwarp_get_speed_floor(s);
+    cap = speechwarp_get_pause_cap(s);
+    /* The floor climbs 0.5 over 2x: 0.025 in a step of 0.1x. */
+    CHECK(floor >= previous_floor - 1e-6 && floor - previous_floor <= 0.025 + 1e-5);
+    /* The cap is 0.03 a second of speed, once it is on at 3x. */
+    if (k > 30) CHECK(cap >= previous_cap - 1e-6 && cap - previous_cap <= 0.003 + 1e-5);
+    previous_floor = floor;
+    previous_cap = cap;
+  }
+  speechwarp_destroy(s);
+}
+
+/* Write all of `in` through a stream set up by `setup`, in odd-sized pieces, and return a fingerprint. */
+static double fingerprint(const float* in, int frames, int heard, int* out_frames) {
+  speechwarp_stream* s = speechwarp_create(RATE, 1);
+  float buffer[4096];
+  double sum = 0;
+  int position = 0, total = 0, n;
+
+  speechwarp_set_speed(s, 5);
+  if (heard) {
+    speechwarp_set_heard_pause(s, 0.03f, 3);
+    speechwarp_set_floor_blend(s, 0.5f, 4, 6);
+  } else {
+    speechwarp_set_pause_cap(s, 0.15f);
+    speechwarp_set_speed_floor(s, 0.25f);
+  }
+  while (position < frames) {
+    int piece = frames - position < 1237 ? frames - position : 1237;
+    speechwarp_write(s, in + position, piece);
+    position += piece;
+    while ((n = speechwarp_read(s, buffer, 4096)) > 0) {
+      int i;
+      for (i = 0; i < n; i++) sum += buffer[i] * (double)((total + i) % 1013 + 1);
+      total += n;
+    }
+  }
+  speechwarp_flush(s);
+  while ((n = speechwarp_read(s, buffer, 4096)) > 0) {
+    int i;
+    for (i = 0; i < n; i++) sum += buffer[i] * (double)((total + i) % 1013 + 1);
+    total += n;
+  }
+  speechwarp_destroy(s);
+  *out_frames = total;
+  return sum;
+}
+
+static void test_rule_acts_like_the_fixed_value(void) {
+  int frames, a, b;
+  float* in = speech(20, 7, &frames);
+  double fixed = fingerprint(in, frames, 0, &a);
+  double rule = fingerprint(in, frames, 1, &b);
+  CHECK(a == b);
+  CHECK(fixed == rule);
+  free(in);
+}
+
+/* ---- The standalone syllable counter ---- */
+
+/* Syllables `per_second` a second, interleaved over `channels`, for `sound_seconds` and then silence. */
+static float* syllable_signal(double per_second, double seconds, double sound_seconds, int channels) {
+  int frames = (int)(RATE * seconds), i, c;
+  float* in = (float*)malloc((size_t)frames * channels * sizeof(float));
+  for (i = 0; i < frames; i++) {
+    double t = (double)i / RATE;
+    double x = t < sound_seconds ? pow(sin(PI * t * per_second), 2) * voice(t) : 0;
+    for (c = 0; c < channels; c++) in[(size_t)i * channels + c] = (float)(x * (c + 1) / channels);
+  }
+  return in;
+}
+
+/* 16-bit samples the way the library converts float ones. */
+static int16_t* to_16(const float* in, int count) {
+  int16_t* ints = (int16_t*)malloc((size_t)count * sizeof(int16_t));
+  int i;
+  for (i = 0; i < count; i++) ints[i] = (int16_t)lrintf(in[i] * 32767.0f);
+  return ints;
+}
+
+static void test_syllables_standalone(void) {
+  int channels, as_ints;
+
+  for (channels = 1; channels <= 2; channels++) {
+    for (as_ints = 0; as_ints <= 1; as_ints++) {
+      int frames = RATE * 25, position;
+      float* in = syllable_signal(5, 25, 25, channels);
+      int16_t* ints;
+      speechwarp_stream* s = speechwarp_create(RATE, channels);
+      speechwarp_syllables* c = speechwarp_syllables_create(RATE, channels);
+      float sink[8192];
+      double from_stream, from_counter;
+
+      ints = to_16(in, frames * channels);
+      for (position = 0; position < frames; position += 1000) {
+        int n = frames - position < 1000 ? frames - position : 1000;
+        if (as_ints) speechwarp_write_i16(s, ints + (size_t)position * channels, n);
+        else speechwarp_write(s, in + (size_t)position * channels, n);
+        while (speechwarp_read(s, sink, 8192 / channels) > 0) {
+        }
+      }
+      /* The counter gets different pieces, including ones that are not a whole number of 10 ms frames. */
+      for (position = 0; position < frames;) {
+        int n = 1 + (int)(random_unit() * 4000);
+        if (n > frames - position) n = frames - position;
+        if (as_ints) CHECK(speechwarp_syllables_write_i16(c, ints + (size_t)position * channels, n) == 1);
+        else CHECK(speechwarp_syllables_write(c, in + (size_t)position * channels, n) == 1);
+        position += n;
+      }
+      from_stream = speechwarp_syllable_rate(s);
+      from_counter = speechwarp_syllables_rate(c, 60, 10);
+      if (from_stream != from_counter) printf("syllables: stream %.12g, counter %.12g\n", from_stream, from_counter);
+      CHECK(from_stream == from_counter);
+      CHECK(fabs(from_counter - 5) < 0.5);
+      speechwarp_syllables_destroy(c);
+      speechwarp_destroy(s);
+      free(ints);
+      free(in);
+    }
+  }
+}
+
+static void test_syllables_window_and_minimum(void) {
+  /* Ten seconds of syllables at 5 a second, then ten of silence. */
+  float* in = syllable_signal(5, 20, 10, 1);
+  speechwarp_syllables* c = speechwarp_syllables_create(RATE, 1);
+
+  speechwarp_syllables_write(c, in, RATE * 20);
+  CHECK(speechwarp_syllables_rate(c, 5, 0) == 0);
+  CHECK(fabs(speechwarp_syllables_rate(c, 20, 0) - 2.5) < 0.4);
+  CHECK(fabs(speechwarp_syllables_rate(c, 60, 10) - 2.5) < 0.4);
+  CHECK(speechwarp_syllables_rate(c, 60, 25) < 0);   /* not enough yet */
+  CHECK(speechwarp_syllables_rate(c, 60, 20) >= 0);  /* exactly enough */
+  /* The minimum is held to the window: 5 s is available, 100 asked for. */
+  CHECK(speechwarp_syllables_rate(c, 5, 100) == 0);
+  /* The window is held to 1 to 120 s. */
+  CHECK(speechwarp_syllables_rate(c, 0, 0) == speechwarp_syllables_rate(c, 1, 0));
+  CHECK(speechwarp_syllables_rate(c, -3, 0) == speechwarp_syllables_rate(c, 1, 0));
+  CHECK(speechwarp_syllables_rate(c, 1000, 0) == speechwarp_syllables_rate(c, 120, 0));
+  CHECK(speechwarp_syllables_rate(c, 60, -4) == speechwarp_syllables_rate(c, 60, 0));
+  CHECK(speechwarp_syllables_rate(c, 1000, 0) == speechwarp_syllables_rate(c, 20, 0));
+
+  /* Reset forgets everything, and the counter then gives what a new one gives. */
+  speechwarp_syllables_reset(c);
+  CHECK(speechwarp_syllables_rate(c, 60, 10) < 0);
+  CHECK(speechwarp_syllables_rate(c, 60, 0) < 0);
+  speechwarp_syllables_write(c, in, RATE * 20);
+  CHECK(fabs(speechwarp_syllables_rate(c, 20, 0) - 2.5) < 0.4);
+  speechwarp_syllables_destroy(c);
+  free(in);
+}
+
+static void test_syllables_two_minutes(void) {
+  /* The window reaches back two minutes: 8 a second for 130 s. */
+  float* in = syllable_signal(8, 130, 130, 1);
+  speechwarp_syllables* c = speechwarp_syllables_create(RATE, 1);
+  double r120, r60;
+  speechwarp_syllables_write(c, in, RATE * 130);
+  r120 = speechwarp_syllables_rate(c, 120, 0);
+  r60 = speechwarp_syllables_rate(c, 60, 0);
+  CHECK(fabs(r120 - 8) < 0.8);
+  CHECK(fabs(r60 - 8) < 0.8);
+  speechwarp_syllables_destroy(c);
+  free(in);
+}
+
+static void test_syllables_arguments(void) {
+  float one[10] = {0};
+  speechwarp_syllables* c;
+
+  CHECK(speechwarp_syllables_create(3999, 1) == NULL);
+  CHECK(speechwarp_syllables_create(384001, 1) == NULL);
+  CHECK(speechwarp_syllables_create(44100, 0) == NULL);
+  CHECK(speechwarp_syllables_create(44100, 33) == NULL);
+  c = speechwarp_syllables_create(4000, 32);
+  CHECK(c != NULL);
+  CHECK(speechwarp_syllables_write(c, NULL, 5) == 0);
+  CHECK(speechwarp_syllables_write(c, one, -1) == 0);
+  CHECK(speechwarp_syllables_write(c, NULL, 0) == 1);
+  CHECK(speechwarp_syllables_write_i16(c, NULL, 5) == 0);
+  CHECK(speechwarp_syllables_write(NULL, one, 1) == 0);
+  CHECK(speechwarp_syllables_rate(NULL, 60, 10) < 0);
+  speechwarp_syllables_reset(NULL);
+  speechwarp_syllables_destroy(NULL);
+  speechwarp_syllables_destroy(c);
+}
+
 int main(void) {
   test_settings();
   test_pause_cap();
@@ -440,6 +783,15 @@ int main(void) {
   test_gaps_do_not_click();
   test_chunking();
   test_syllable_rate();
+  test_heard_pause_rule();
+  test_floor_blend_rule();
+  test_fixed_and_rules_replace_each_other();
+  test_ramp_is_continuous();
+  test_rule_acts_like_the_fixed_value();
+  test_syllables_standalone();
+  test_syllables_window_and_minimum();
+  test_syllables_two_minutes();
+  test_syllables_arguments();
   if (failures) {
     printf("%d checks failed\n", failures);
     return 1;

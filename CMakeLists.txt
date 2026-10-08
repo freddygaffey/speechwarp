@@ -34,7 +34,7 @@ set(speechwarp_third_party
   src/third_party_kissfft.c
   src/third_party_sonic.c
   src/third_party_speedy.c)
-set(speechwarp_sources src/speechwarp.c src/fft.c ${speechwarp_third_party})
+set(speechwarp_sources src/speechwarp.c src/trainer.c src/fft.c ${speechwarp_third_party})
 
 # Upstream code is compiled as it comes; its warnings are not ours to fix.
 if(MSVC)
