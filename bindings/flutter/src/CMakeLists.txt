@@ -8,6 +8,7 @@ set(root "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 
 add_library(speechwarp SHARED
   "${root}/src/speechwarp.c"
+  "${root}/src/trainer.c"
   "${root}/src/fft.c"
   "${root}/src/third_party_kissfft.c"
   "${root}/src/third_party_sonic.c"

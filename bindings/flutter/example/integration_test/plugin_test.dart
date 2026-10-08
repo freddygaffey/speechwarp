@@ -25,6 +25,11 @@ void main() {
     expect(stream.position, input.length);
     stream.close();
 
+    // The listener trainer lives in its own source file, which must have been built in too.
+    final trainer = ListenerTrainer(seed: 1)..testBegin(10, 0);
+    expect(trainer.testRate(), greaterThan(0));
+    trainer.close();
+
     await tester.pumpWidget(const ExampleApp());
     expect(find.textContaining('s out'), findsOneWidget);
   });

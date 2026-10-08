@@ -17,7 +17,7 @@ done
 # STANDALONE_WASM: no Emscripten JavaScript runtime, so the same file loads in a browser, in Node and in an
 # AudioWorklet, where much of that runtime is unavailable. NDEBUG: upstream is full of assertions.
 emcc -O3 -DNDEBUG -I"$root/include" -I"$root/third_party/kissfft" \
-  "$root/src/speechwarp.c" "$root/src/fft.c" "$root/src/third_party_kissfft.c" \
+  "$root/src/speechwarp.c" "$root/src/trainer.c" "$root/src/fft.c" "$root/src/third_party_kissfft.c" \
   "$root/src/third_party_sonic.c" "$root/src/third_party_speedy.c" \
   -sSTANDALONE_WASM --no-entry -sALLOW_MEMORY_GROWTH -sEXPORTED_FUNCTIONS="$exports" \
   -o build/speechwarp.wasm

@@ -167,4 +167,165 @@ void main() {
     expect(stream.syllableRate, isNotNull);
     stream.close();
   });
+
+  test('heard pause and floor blend are read back, and drive the pause cap and floor', () {
+    final stream = SpeechwarpStream(rate);
+    expect([stream.heardPause, stream.floorBlend], [0, 0]);
+    stream.setHeardPause(0.03, 3);
+    expect(stream.heardPause, closeTo(0.03, 1e-6));
+    expect(stream.heardPauseFrom, 3);
+    stream.speed = 5;
+    expect(stream.pauseCap, closeTo(0.15, 1e-6));
+    stream.speed = 2; // below the from speed: pauses are left alone
+    expect(stream.pauseCap, 0);
+
+    stream.setFloorBlend(0.5, 4, 6);
+    expect([stream.floorBlend, stream.floorBlendFrom, stream.floorBlendFull], [0.5, 4, 6]);
+    stream.speed = 5;
+    expect(stream.speedFloor, closeTo(0.25, 1e-6));
+    stream.speed = 8;
+    expect(stream.speedFloor, closeTo(0.5, 1e-6));
+    expect(() => stream.setHeardPause(double.nan, 3), throwsArgumentError);
+    stream.close();
+  });
+
+  test('a syllable counter agrees with a stream', () {
+    final input = signal(15);
+    final counter = SyllableCounter(rate);
+    final stream = SpeechwarpStream(rate);
+    final half = rate * 5;
+    counter.write(Float32List.sublistView(input, 0, half));
+    expect(counter.rate(), isNull);
+    counter.write(Float32List.sublistView(input, half));
+    stream.write(input);
+    expect(counter.rate(), greaterThan(0));
+    expect(counter.rate(windowSeconds: 60, minimumSeconds: 10), stream.syllableRate);
+
+    final ints = Int16List.fromList([for (final x in input) (x * 32767).round()]);
+    final other = SyllableCounter(rate)..writeInt16(ints);
+    expect(other.rate(), closeTo(counter.rate()!, 0.5));
+
+    counter.reset();
+    expect(counter.rate(), isNull);
+    final stereo = SyllableCounter(rate, channels: 2);
+    expect(() => stereo.write(Float32List(3)), throwsArgumentError);
+    expect(() => SyllableCounter(100), throwsRangeError);
+    stereo.close();
+    counter.close();
+    counter.close();
+    expect(() => counter.rate(), throwsStateError);
+    stream.close();
+    other.close();
+  });
+
+  test('the listener trainer finds a threshold deterministically', () {
+    final trainer = ListenerTrainer(seed: 5)..testBegin(10, 0);
+    for (var i = 0; i < 12; i++) {
+      final r = trainer.testRate();
+      expect(trainer.addMeasure(TrainerMeasure.verification, r < 11 ? 0.95 : 0.55, 8, r, i.toDouble()), isTrue);
+    }
+    final threshold = trainer.testEnd(100);
+    expect(threshold, greaterThan(0));
+    expect(trainer.threshold, threshold);
+    expect(trainer.thresholdLow, lessThan(threshold));
+    expect(trainer.thresholdHigh, greaterThan(threshold));
+    expect(trainer.testDone, isA<bool>());
+
+    trainer.sessionBegin(TrainerPlan.steady, 200);
+    expect(trainer.sessionRate(300), closeTo(threshold * 1.1, 1e-6));
+    expect(trainer.sessionEnd(1, 3800), 0);
+
+    expect(trainer.planEffect(TrainerPlan.ramp), 0);
+    expect(trainer.planRetention(TrainerPlan.ramp), isNaN);
+    expect(trainer.planSessions(TrainerPlan.ramp), 0);
+
+    trainer.setParam(TrainerParam.target, 0.8);
+    expect(trainer.getParam(TrainerParam.target), 0.8);
+    trainer.setWeight(TrainerMeasure.rating, 0.1);
+    expect(trainer.getWeight(TrainerMeasure.rating), closeTo(0.1, 1e-12));
+    expect(trainer.addMeasure(TrainerMeasure.retention, 0.5, 1, 10, 0), isFalse);
+
+    final a = ListenerTrainer(seed: 9);
+    final b = ListenerTrainer(seed: 9);
+    final plans = [for (var i = 0; i < 8; i++) a.nextPlan()];
+    expect([for (var i = 0; i < 8; i++) b.nextPlan()], plans);
+
+    for (final t in [trainer, a, b]) {
+      t.close();
+    }
+    expect(() => trainer.threshold, throwsStateError);
+  });
+
+  test('the trainer enums carry the C values, and every parameter, retention and summary reads back', () {
+    expect([for (final m in TrainerMeasure.values) m.value], [0, 1, 2, 3]);
+    expect([for (final m in TrainerPlan.values) m.value], [0, 1, 2, 3]);
+    expect([for (final m in TrainerParam.values) m.value], [for (var i = 0; i < 11; i++) i]);
+
+    final trainer = ListenerTrainer(seed: 3);
+    expect(trainer.getParam(TrainerParam.target), 0.75);
+    expect(trainer.getParam(TrainerParam.testMax), 40);
+    for (final p in TrainerParam.values) {
+      expect(trainer.getParam(p).isFinite, isTrue, reason: p.name);
+    }
+    trainer.setParam(TrainerParam.margin, 0.2);
+    expect(trainer.getParam(TrainerParam.margin), closeTo(0.2, 1e-12));
+
+    trainer.testBegin(10, 0);
+    for (var i = 0; i < 12; i++) {
+      final r = trainer.testRate();
+      trainer.addMeasure(TrainerMeasure.verification, r < 11 ? 0.95 : 0.55, 8, r, i.toDouble());
+    }
+    trainer.testEnd(100);
+    trainer.sessionBegin(TrainerPlan.ramp, 200);
+    trainer.testBegin(10, 300);
+    for (var i = 0; i < 12; i++) {
+      final r = trainer.testRate();
+      trainer.addMeasure(TrainerMeasure.verification, r < 11.5 ? 0.95 : 0.55, 8, r, 300.0 + i);
+    }
+    trainer.testEnd(400); // a test after the session began, so the session is recorded
+    final session = trainer.sessionEnd(1, 3800);
+    expect(session, 0);
+    expect(trainer.addRetention(session, 0.8, 8, 86400, 90000), isTrue);
+    expect(trainer.addRetention(99, 0.8, 8, 86400, 90000), isFalse);
+    for (final plan in TrainerPlan.values) {
+      expect(trainer.planEffectSd(plan), isA<double>());
+      expect(trainer.planRetentionSd(plan), isA<double>());
+      expect(trainer.planBestProbability(plan), inInclusiveRange(0, 1));
+    }
+    expect(trainer.planSessions(TrainerPlan.ramp), 1);
+    expect(trainer.trend, greaterThan(0));
+    expect(trainer.trendSd, greaterThanOrEqualTo(0));
+    trainer.close();
+  });
+
+  test('blind trials choose pairs and add up results', () {
+    final trials = BlindTrials(seed: 1);
+    expect(trials.next(5), isNull);
+    final setting = trials.addSetting();
+    expect(setting, 0);
+    expect(trials.addValue(setting, 0), 0);
+    expect(trials.addValue(setting, 0.5), 1);
+    expect(trials.addValue(setting, 0.5), -1);
+    final next = trials.next(5)!;
+    expect(next.setting, setting);
+    expect([next.first, next.second]..sort(), [0, 0.5]);
+
+    expect(trials.meanScore(setting, 5, 0), isNull);
+    expect(trials.winner(setting, 5), isNull);
+    expect(trials.add(setting, 5, 0, 0.5, 0.6, 0.8, 1), isTrue);
+    expect(trials.add(setting, 5.5, 0.5, 0, 0.9, 0.7, -1), isTrue);
+    expect(trials.add(setting, 5, 0, 0.5, 0.5, 0.5, 0), isTrue);
+    expect(trials.add(setting, 5, 0, 9, 0.5, 0.5, 0), isFalse);
+    expect([for (var v = 0; v < 2; v++) trials.won(setting, 5, v)], [0, 2]);
+    expect([for (var v = 0; v < 2; v++) trials.lost(setting, 5, v)], [2, 0]);
+    expect([for (var v = 0; v < 2; v++) trials.tied(setting, 5, v)], [1, 1]);
+    expect([for (var v = 0; v < 2; v++) trials.heard(setting, 5, v)], [3, 3]);
+    expect(trials.meanScore(setting, 5, 0), closeTo((0.6 + 0.7 + 0.5) / 3, 1e-9));
+    expect(trials.winner(setting, 5), isNull);
+    trials.setAvailable(setting, false);
+    expect(trials.next(5), isNull);
+    trials.setConfidence(0.9);
+    trials.close();
+    expect(() => trials.addSetting(), throwsStateError);
+  });
 }

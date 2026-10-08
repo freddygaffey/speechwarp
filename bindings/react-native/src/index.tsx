@@ -158,6 +158,59 @@ export class Stream {
     Native.setRhythmRate(this.open(), value);
   }
 
+  // Options that follow the speed. See docs/how-it-works.md.
+
+  /**
+   * Keep each pause about `seconds` long in the output: the pause cap in force is `seconds` times the current
+   * speed, clamped to 0.03 to 0.4 s of input, and is applied whenever `speed` changes. Below `fromSpeed`
+   * pauses are left alone. `seconds`: 0 turns the rule off (and the pause cap with it); otherwise 0.002 to
+   * 0.4. `fromSpeed`: 1 to 20. Sensible: 0.015 to 0.06 from 3x. Setting `pauseCap` turns the rule off.
+   */
+  setHeardPause(seconds: number, fromSpeed: number): void {
+    Native.setHeardPause(this.open(), number('seconds', seconds), number('fromSpeed', fromSpeed));
+  }
+
+  /** The `seconds` last given to `setHeardPause`; 0 while the rule is off. */
+  get heardPause(): number {
+    return Native.getHeardPause(this.open());
+  }
+
+  /** The `fromSpeed` last given to `setHeardPause`. */
+  get heardPauseFrom(): number {
+    return Native.getHeardPauseFrom(this.open());
+  }
+
+  /**
+   * The speed floor in force is 0 below `fromSpeed`, rises linearly to `fraction` at `fullSpeed` and stays
+   * there above it, so that a speed ramp never changes the sound in a jump. `fraction`: 0 turns the rule off
+   * (and the floor with it); otherwise up to 1. Speeds 1 to 20; if `fullSpeed` is not above `fromSpeed` the
+   * floor steps to `fraction` at `fromSpeed`. Sensible: 0.5 from 4x, full at 6x. Setting `speedFloor` turns
+   * the rule off.
+   */
+  setFloorBlend(fraction: number, fromSpeed: number, fullSpeed: number): void {
+    Native.setFloorBlend(
+      this.open(),
+      number('fraction', fraction),
+      number('fromSpeed', fromSpeed),
+      number('fullSpeed', fullSpeed)
+    );
+  }
+
+  /** The `fraction` last given to `setFloorBlend`; 0 while the rule is off. */
+  get floorBlend(): number {
+    return Native.getFloorBlend(this.open());
+  }
+
+  /** The `fromSpeed` last given to `setFloorBlend`. */
+  get floorBlendFrom(): number {
+    return Native.getFloorBlendFrom(this.open());
+  }
+
+  /** The `fullSpeed` last given to `setFloorBlend`. */
+  get floorBlendFull(): number {
+    return Native.getFloorBlendFull(this.open());
+  }
+
   /**
    * Syllables a second in the input, pauses included, over about the last 60 s written; null until 10 s have
    * been written since creation or `reset`. Multiply by the speed for the rate heard. An estimate, typically
@@ -251,6 +304,451 @@ export class Stream {
   private open(): number {
     if (this.handle === 0) {
       throw new Error('speechwarp: the stream has been freed');
+    }
+    return this.handle;
+  }
+}
+
+function seedNumber(seed: number): number {
+  if (!Number.isSafeInteger(seed) || seed < 0) {
+    throw new RangeError(`seed must be a whole number from 0 to 2^53 - 1, not ${seed}`);
+  }
+  return seed;
+}
+
+/**
+ * The syllable counter of a stream, on its own: for audio that does not go through a stream (a player using
+ * some other speed-up, or measuring a file). A counter given the same input as a stream reports the same rate
+ * as `Stream.syllableRate`.
+ */
+export class SyllableCounter {
+  readonly sampleRate: number;
+  readonly channels: number;
+  private handle: number;
+
+  /**
+   * @param sampleRate Samples per second, 4000 to 384000.
+   * @param channels 1 to 32.
+   */
+  constructor(sampleRate: number, channels = 1) {
+    if (!Number.isInteger(sampleRate) || sampleRate < 4000 || sampleRate > 384000) {
+      throw new RangeError(`sampleRate must be a whole number from 4000 to 384000, not ${sampleRate}`);
+    }
+    if (!Number.isInteger(channels) || channels < 1 || channels > 32) {
+      throw new RangeError(`channels must be a whole number from 1 to 32, not ${channels}`);
+    }
+    this.handle = Native.syllablesCreate(sampleRate, channels);
+    if (this.handle === 0) {
+      throw new Error('speechwarp: out of memory');
+    }
+    this.sampleRate = sampleRate;
+    this.channels = channels;
+  }
+
+  /** Add interleaved samples: floats in the range -1 to 1, or 16-bit integers. */
+  write(samples: Float32Array | Int16Array): void {
+    const handle = this.open();
+    if (samples.length % this.channels !== 0) {
+      throw new RangeError(`${samples.length} samples is not a whole number of ${this.channels}-channel frames`);
+    }
+    const frames = samples.length / this.channels;
+    if (frames === 0) {
+      return;
+    }
+    const ok =
+      samples instanceof Int16Array
+        ? Native.syllablesWriteI16(handle, samples.buffer, samples.byteOffset, frames)
+        : Native.syllablesWrite(handle, samples.buffer, samples.byteOffset, frames);
+    if (!ok) {
+      throw new Error('speechwarp: the samples could not be counted');
+    }
+  }
+
+  /**
+   * Syllables a second over the last `windowSeconds` written (or all of it, if less); null until
+   * `minimumSeconds` have been written. The window is clamped to 1 to 120 s, the minimum to 0 to the window.
+   */
+  rate(windowSeconds = 60, minimumSeconds = 10): number | null {
+    const rate = Native.syllablesRate(
+      this.open(),
+      number('windowSeconds', windowSeconds),
+      number('minimumSeconds', minimumSeconds)
+    );
+    return rate < 0 ? null : rate;
+  }
+
+  /** Forget everything written. */
+  reset(): void {
+    Native.syllablesReset(this.open());
+  }
+
+  /** Release the native counter. Using it afterwards throws. */
+  free(): void {
+    if (this.handle !== 0) {
+      Native.syllablesDestroy(this.handle);
+      this.handle = 0;
+    }
+  }
+
+  private open(): number {
+    if (this.handle === 0) {
+      throw new Error('speechwarp: the syllable counter has been freed');
+    }
+    return this.handle;
+  }
+}
+
+/** What a score in 0..1 measures. */
+export enum TrainerMeasure {
+  /** Share of the words said back correctly from a sentence heard once. */
+  Intelligibility = 0,
+  /** Share right on "was this sentence in what you just heard?" items. Chance is 0.5. */
+  Verification = 1,
+  /** Verification items about a session's material, answered after a delay; see `addRetention`. */
+  Retention = 2,
+  /** The listener's own "how well did you follow?", 1 to 5 scaled to 0..1 as (r - 1) / 4. */
+  Rating = 3,
+}
+
+/** Session plans: how the rate moves during a session. */
+export enum TrainerPlan {
+  /** The threshold plus a margin, all session. */
+  Steady = 0,
+  /** Start below the threshold and step up to threshold plus margin. */
+  Ramp = 1,
+  /** Alternate periods above and below the threshold. */
+  Interval = 2,
+  /** Move up or down after each in-session check, to stay at the target. */
+  Tracking = 3,
+}
+
+/** Tunable numbers of the trainer, with their defaults. */
+export enum TrainerParam {
+  /** Share understood that defines the threshold: 0.75 (0.5 to 0.95). */
+  Target = 0,
+  /** Steady and ramp: aim this fraction above the threshold: 0.10. */
+  Margin = 1,
+  /** Ramp: start at this fraction of the target rate: 0.8. */
+  RampStart = 2,
+  /** Ramp: step by this fraction of the target rate: 0.02. */
+  RampStep = 3,
+  /** Ramp: minutes between steps: 2. */
+  RampMinutes = 4,
+  /** Interval: this fraction above, then below, the threshold: 0.15. */
+  IntervalSpread = 5,
+  /** Interval: minutes in each period: 10. */
+  IntervalMinutes = 6,
+  /** Tracking: ln(rate) moves by gain x (score - target) per check: 0.4. */
+  TrackingGain = 7,
+  /** Plans: threshold gain an hour worth a whole unit of retention: 0.2. */
+  RetentionCost = 8,
+  /** Threshold test: most presentations: 40. */
+  TestMax = 9,
+  /** Threshold test: done when the 95% interval's high / low is below this: 1.25. */
+  TestPrecision = 10,
+}
+
+/**
+ * Training a listener to follow faster speech: pure logic with no audio, clock or storage. Scores, rates and
+ * timestamps go in as plain numbers; rates and plans come out. Deterministic: two trainers with the same seed
+ * given the same calls give the same answers, so keep a log of calls and replay it to restore state.
+ *
+ * The unit of rate everywhere is syllables a second heard: the source's syllable rate times the speed. Times
+ * are seconds on any clock, and only differences are used. NaN arguments are ignored.
+ */
+export class ListenerTrainer {
+  private handle: number;
+
+  /** @param seed Seed for the trainer's random choices: a whole number from 0 to 2^53 - 1. */
+  constructor(seed = 0) {
+    this.handle = Native.trainerCreate(seedNumber(seed));
+    if (this.handle === 0) {
+      throw new Error('speechwarp: out of memory');
+    }
+  }
+
+  /**
+   * How much a measure of each kind counts, per item, against the others: intelligibility 0.5, verification
+   * 1, retention 1, rating 0.3. 0 ignores the kind; negative and NaN are ignored.
+   */
+  setWeight(kind: TrainerMeasure, weight: number): void {
+    Native.trainerSetWeight(this.open(), kind, weight);
+  }
+
+  getWeight(kind: TrainerMeasure): number {
+    return Native.trainerGetWeight(this.open(), kind);
+  }
+
+  /** Set a tunable number; see `TrainerParam` for the defaults. */
+  setParam(param: TrainerParam, value: number): void {
+    Native.trainerSetParam(this.open(), param, value);
+  }
+
+  getParam(param: TrainerParam): number {
+    return Native.trainerGetParam(this.open(), param);
+  }
+
+  /**
+   * Record a score: `kind` (not Retention), `score` 0..1, from `items` items (for a sentence repeated back,
+   * the number of words scored; for verification, the number of questions; for a rating, 1), heard at `rate`
+   * syllables a second, at `time`. During a threshold test it updates the estimate; during a session it is
+   * an in-session check, and the tracking plan reacts to it. Returns false if an argument is invalid.
+   */
+  addMeasure(kind: TrainerMeasure, score: number, items: number, rate: number, time: number): boolean {
+    return Native.trainerAddMeasure(this.open(), kind, score, items, rate, time);
+  }
+
+  /**
+   * Start a threshold test: estimates the rate understood `TrainerParam.Target` (75%) of the time, by the psi
+   * method. The prior is log-normal around `priorRate` or, if that is 0, around the last estimate, or failing
+   * that around 10 syllables a second, within 3 to 60.
+   */
+  testBegin(priorRate: number, time: number): void {
+    Native.trainerTestBegin(this.open(), priorRate, time);
+  }
+
+  /** The rate to present next. */
+  testRate(): number {
+    return Native.trainerTestRate(this.open());
+  }
+
+  /**
+   * True once the 95% interval is narrower than `TrainerParam.TestPrecision` (at least 8 presentations) or
+   * `TrainerParam.TestMax` presentations have been scored; false otherwise or if no test is running.
+   */
+  get testDone(): boolean {
+    return Native.trainerTestDone(this.open());
+  }
+
+  /** Finish the test; the estimate becomes the current threshold. Returns it (0 if no test was running). */
+  testEnd(time: number): number {
+    return Native.trainerTestEnd(this.open(), time);
+  }
+
+  /** The current estimate (posterior median): of the running test, else of the last one finished; 0 if none. */
+  get threshold(): number {
+    return Native.trainerThreshold(this.open());
+  }
+
+  /** The low end of the 95% interval of the estimate. */
+  get thresholdLow(): number {
+    return Native.trainerThresholdLow(this.open());
+  }
+
+  /** The high end of the 95% interval of the estimate. */
+  get thresholdHigh(): number {
+    return Native.trainerThresholdHigh(this.open());
+  }
+
+  /** Begin a session under `plan`. */
+  sessionBegin(plan: TrainerPlan, time: number): void {
+    Native.trainerSessionBegin(this.open(), plan, time);
+  }
+
+  /** The rate to play at now, under the session's plan, from the threshold at `sessionBegin`. 0 if no session. */
+  sessionRate(time: number): number {
+    return Native.trainerSessionRate(this.open(), time);
+  }
+
+  /**
+   * End the session after `listeningHours` of listening in it. It is recorded for comparing plans if a
+   * threshold test ended after it began. Returns the session's number (0, 1, ...) for `addRetention`, or -1.
+   */
+  sessionEnd(listeningHours: number, time: number): number {
+    return Native.trainerSessionEnd(this.open(), listeningHours, time);
+  }
+
+  /**
+   * Retention for a recorded session: `score` 0..1 from `items` items, answered `delaySeconds` after it
+   * ended. Returns false if an argument is invalid.
+   */
+  addRetention(session: number, score: number, items: number, delaySeconds: number, time: number): boolean {
+    return Native.trainerAddRetention(this.open(), session, score, items, delaySeconds, time);
+  }
+
+  /** The plan to run next: a Thompson draw (advances the random source). */
+  nextPlan(): TrainerPlan {
+    return Native.trainerNextPlan(this.open());
+  }
+
+  /** A plan's estimated threshold gain an hour now, as a fraction: 0.01 is 1% an hour. */
+  planEffect(plan: TrainerPlan): number {
+    return Native.trainerPlanEffect(this.open(), plan);
+  }
+
+  /** The standard deviation of `planEffect`. */
+  planEffectSd(plan: TrainerPlan): number {
+    return Native.trainerPlanEffectSd(this.open(), plan);
+  }
+
+  /** A plan's retention; NaN without data. */
+  planRetention(plan: TrainerPlan): number {
+    return Native.trainerPlanRetention(this.open(), plan);
+  }
+
+  /** The standard deviation of `planRetention`; NaN without data. */
+  planRetentionSd(plan: TrainerPlan): number {
+    return Native.trainerPlanRetentionSd(this.open(), plan);
+  }
+
+  /** Sessions recorded under a plan. */
+  planSessions(plan: TrainerPlan): number {
+    return Native.trainerPlanSessions(this.open(), plan);
+  }
+
+  /** The probability that a plan is the best by utility (does not advance the random source). */
+  planBestProbability(plan: TrainerPlan): number {
+    return Native.trainerPlanBestProbability(this.open(), plan);
+  }
+
+  /** H, the hours of listening by which gains have halved (1000 standing for "not slowing"). */
+  get trend(): number {
+    return Native.trainerTrend(this.open());
+  }
+
+  /** The uncertainty of `trend` as a standard deviation of ln H. */
+  get trendSd(): number {
+    return Native.trainerTrendSd(this.open());
+  }
+
+  /** Release the native trainer. Using it afterwards throws. */
+  free(): void {
+    if (this.handle !== 0) {
+      Native.trainerDestroy(this.handle);
+      this.handle = 0;
+    }
+  }
+
+  private open(): number {
+    if (this.handle === 0) {
+      throw new Error('speechwarp: the trainer has been freed');
+    }
+    return this.handle;
+  }
+}
+
+/**
+ * Designing the listener's own blind A/B comparisons: which setting to compare next at a speed, which two of
+ * its values, in what order, and how results add up in each speed band (whole numbers: 4 to 5, 5 to 6, ...).
+ * The caller names the settings; here they are numbers. Deterministic for a given seed.
+ */
+export class BlindTrials {
+  private handle: number;
+
+  /** @param seed Seed for the random choices: a whole number from 0 to 2^53 - 1. */
+  constructor(seed = 0) {
+    this.handle = Native.trialsCreate(seedNumber(seed));
+    if (this.handle === 0) {
+      throw new Error('speechwarp: out of memory');
+    }
+  }
+
+  /** Add a setting; returns its number (0, 1, ...), or -1. */
+  addSetting(): number {
+    return Native.trialsAddSetting(this.open());
+  }
+
+  /** Add a value to compare; returns its number within the setting, or -1 (duplicate, bad setting). */
+  addValue(setting: number, value: number): number {
+    return Native.trialsAddValue(this.open(), setting, value);
+  }
+
+  /** Leave a setting out of `next` while false (say, when its method is not available). Default true. */
+  setAvailable(setting: number, available: boolean): void {
+    Native.trialsSetAvailable(this.open(), setting, available);
+  }
+
+  /**
+   * Record a trial at `speed`: the two values in the order heard, each one's score 0..1, and `preferred`: -1
+   * the first, 1 the second, 0 neither. Values must be ones added. Returns false if an argument is invalid.
+   */
+  add(
+    setting: number,
+    speed: number,
+    firstValue: number,
+    secondValue: number,
+    firstScore: number,
+    secondScore: number,
+    preferred: number
+  ): boolean {
+    return Native.trialsAdd(
+      this.open(),
+      setting,
+      speed,
+      firstValue,
+      secondValue,
+      firstScore,
+      secondScore,
+      preferred
+    );
+  }
+
+  /**
+   * Choose the next trial at `speed`: the available setting with the fewest trials in its band (ties at
+   * random), its pair of values compared least (ties at random), in random order. Null if no setting has two
+   * values.
+   */
+  next(speed: number): { setting: number; first: number; second: number } | null {
+    const handle = this.open();
+    const setting = Native.trialsNext(handle, speed);
+    if (setting < 0) {
+      return null;
+    }
+    return { setting, first: Native.trialsNextFirst(handle), second: Native.trialsNextSecond(handle) };
+  }
+
+  /** Comparisons won by one value of a setting in the band of `speed`. */
+  won(setting: number, speed: number, value: number): number {
+    return Native.trialsWon(this.open(), setting, speed, value);
+  }
+
+  /** Comparisons lost by one value of a setting in the band of `speed`. */
+  lost(setting: number, speed: number, value: number): number {
+    return Native.trialsLost(this.open(), setting, speed, value);
+  }
+
+  /** Comparisons tied by one value of a setting in the band of `speed`. */
+  tied(setting: number, speed: number, value: number): number {
+    return Native.trialsTied(this.open(), setting, speed, value);
+  }
+
+  /** Trials one value of a setting was heard in, in the band of `speed`. */
+  heard(setting: number, speed: number, value: number): number {
+    return Native.trialsHeard(this.open(), setting, speed, value);
+  }
+
+  /** The mean score of one value in the band of `speed`; null if never heard. */
+  meanScore(setting: number, speed: number, value: number): number | null {
+    const score = Native.trialsMeanScore(this.open(), setting, speed, value);
+    return Number.isNaN(score) ? null : score;
+  }
+
+  /**
+   * The value with a reliable win in that band, or null. A value wins when it has been heard in at least 5
+   * trials, has met every other value in at least 3, and against each the Bayes factor for "preferred" over
+   * "no preference" is at least 1 / (1 - confidence): 20 at the default 0.95.
+   */
+  winner(setting: number, speed: number): number | null {
+    const value = Native.trialsWinner(this.open(), setting, speed);
+    return value < 0 ? null : value;
+  }
+
+  /** The confidence `winner` demands, 0 to 1; default 0.95. */
+  setConfidence(confidence: number): void {
+    Native.trialsSetConfidence(this.open(), confidence);
+  }
+
+  /** Release the native trials. Using them afterwards throws. */
+  free(): void {
+    if (this.handle !== 0) {
+      Native.trialsDestroy(this.handle);
+      this.handle = 0;
+    }
+  }
+
+  private open(): number {
+    if (this.handle === 0) {
+      throw new Error('speechwarp: the trials have been freed');
     }
     return this.handle;
   }

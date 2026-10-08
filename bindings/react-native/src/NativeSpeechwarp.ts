@@ -34,6 +34,71 @@ export interface Spec extends TurboModule {
   flush(handle: number): boolean;
   reset(handle: number): void;
   position(handle: number): number;
+
+  // Handles of syllable counters, trainers and trial designers are separate from stream handles. create
+  // returns 0 if out of memory. Seeds are unsigned 64-bit in the C library; here, whole numbers up to 2^53.
+  syllablesCreate(sampleRate: number, channels: number): number;
+  syllablesDestroy(handle: number): void;
+  // `buffer` holds 32-bit floats (syllablesWrite) or 16-bit integers (syllablesWriteI16) from `byteOffset`.
+  syllablesWrite(handle: number, buffer: Object, byteOffset: number, frames: number): boolean;
+  syllablesWriteI16(handle: number, buffer: Object, byteOffset: number, frames: number): boolean;
+  trainerCreate(seed: number): number;
+  trainerDestroy(handle: number): void;
+  trialsCreate(seed: number): number;
+  trialsDestroy(handle: number): void;
+
+  // stream
+  setHeardPause(handle: number, seconds: number, fromSpeed: number): void;
+  getHeardPause(handle: number): number;
+  getHeardPauseFrom(handle: number): number;
+  setFloorBlend(handle: number, fraction: number, fromSpeed: number, fullSpeed: number): void;
+  getFloorBlend(handle: number): number;
+  getFloorBlendFrom(handle: number): number;
+  getFloorBlendFull(handle: number): number;
+  // counter
+  syllablesRate(handle: number, windowSeconds: number, minimumSeconds: number): number;
+  syllablesReset(handle: number): void;
+  // trainer
+  trainerSetWeight(handle: number, kind: number, weight: number): void;
+  trainerGetWeight(handle: number, kind: number): number;
+  trainerSetParam(handle: number, param: number, value: number): void;
+  trainerGetParam(handle: number, param: number): number;
+  trainerAddMeasure(handle: number, kind: number, score: number, items: number, rate: number, time: number): boolean;
+  trainerTestBegin(handle: number, priorRate: number, time: number): void;
+  trainerTestRate(handle: number): number;
+  trainerTestDone(handle: number): boolean;
+  trainerTestEnd(handle: number, time: number): number;
+  trainerThreshold(handle: number): number;
+  trainerThresholdLow(handle: number): number;
+  trainerThresholdHigh(handle: number): number;
+  trainerSessionBegin(handle: number, plan: number, time: number): void;
+  trainerSessionRate(handle: number, time: number): number;
+  trainerSessionEnd(handle: number, listeningHours: number, time: number): number;
+  trainerAddRetention(handle: number, session: number, score: number, items: number, delaySeconds: number, time: number): boolean;
+  trainerNextPlan(handle: number): number;
+  trainerPlanEffect(handle: number, plan: number): number;
+  trainerPlanEffectSd(handle: number, plan: number): number;
+  trainerPlanRetention(handle: number, plan: number): number;
+  trainerPlanRetentionSd(handle: number, plan: number): number;
+  trainerPlanSessions(handle: number, plan: number): number;
+  trainerPlanBestProbability(handle: number, plan: number): number;
+  trainerTrend(handle: number): number;
+  trainerTrendSd(handle: number): number;
+  // trials
+  trialsAddSetting(handle: number): number;
+  trialsAddValue(handle: number, setting: number, value: number): number;
+  trialsSetAvailable(handle: number, setting: number, available: boolean): void;
+  trialsAdd(handle: number, setting: number, speed: number, firstValue: number, secondValue: number, firstScore: number, secondScore: number, preferred: number): boolean;
+  trialsNext(handle: number, speed: number): number;
+  trialsNextFirst(handle: number): number;
+  trialsNextSecond(handle: number): number;
+  trialsWon(handle: number, setting: number, speed: number, value: number): number;
+  trialsLost(handle: number, setting: number, speed: number, value: number): number;
+  trialsTied(handle: number, setting: number, speed: number, value: number): number;
+  trialsHeard(handle: number, setting: number, speed: number, value: number): number;
+  trialsMeanScore(handle: number, setting: number, speed: number, value: number): number;
+  trialsWinner(handle: number, setting: number, speed: number): number;
+  trialsSetConfidence(handle: number, confidence: number): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Speechwarp');

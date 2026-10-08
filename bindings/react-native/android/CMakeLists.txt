@@ -8,6 +8,7 @@ add_library(
     react-native-speechwarp    STATIC
     ../cpp/SpeechwarpImpl.cpp
     ${speechwarp}/src/speechwarp.c
+    ${speechwarp}/src/trainer.c
     ${speechwarp}/src/fft.c
     ${speechwarp}/src/third_party_kissfft.c
     ${speechwarp}/src/third_party_sonic.c
