@@ -14,13 +14,24 @@ internal static unsafe partial class Native
     // when it compiles the caller, which is before the constructor of this class would run. (A simulator test
     // app threw DllNotFoundException both without this and with it in a static constructor.)
 #pragma warning disable CA2255 // Module initializers are discouraged in libraries; this is what they are for.
+    //
+    // On Windows the native library is libspeechwarp.dll: file names there ignore case, so speechwarp.dll would be
+    // the same file as this assembly, Speechwarp.dll, wherever the two land in one folder (the tests' output, or
+    // an app published for one runtime). Plain "speechwarp" would then find this assembly and no functions in it.
     [ModuleInitializer]
-    internal static void FindFrameworkOnIos()
+    internal static void FindNativeLibrary()
     {
         if (OperatingSystem.IsIOS())
         {
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) =>
                 name == Library && NativeLibrary.TryLoad("@rpath/speechwarp.framework/speechwarp", out nint handle)
+                    ? handle
+                    : 0);
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, assembly, searchPath) =>
+                name == Library && NativeLibrary.TryLoad("libspeechwarp.dll", assembly, searchPath, out nint handle)
                     ? handle
                     : 0);
         }

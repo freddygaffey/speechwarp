@@ -1,11 +1,18 @@
 name: .NET
 
 # Builds the native library for every platform the NuGet package carries, tests the binding on the three
-# desktop systems, and leaves the finished package as an artifact. Nothing is published from here.
+# desktop systems, and leaves the finished package as an artifact.
+#
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that package to nuget.org,
+# once everything has passed. nuget.org trusts this workflow directly ("trusted publishing"): the job trades a
+# GitHub token for a short-lived API key, so no key is stored here. The trust is set up on nuget.org for this
+# repository, this file and the environment `nuget`; the repository variable NUGET_USER names the nuget.org
+# account.
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -41,7 +48,8 @@ jobs:
           cmake -B build -A ${{ matrix.platform }} -DSPEECHWARP_BUILD_STATIC=OFF -DSPEECHWARP_BUILD_TESTS=OFF -DSPEECHWARP_BUILD_TOOLS=OFF
           cmake --build build --config Release
           mkdir -p bindings/dotnet/Speechwarp/runtimes/${{ matrix.rid }}/native
-          cp build/Release/speechwarp.dll bindings/dotnet/Speechwarp/runtimes/${{ matrix.rid }}/native/
+          # Renamed: speechwarp.dll would be the same file as the managed Speechwarp.dll (see Native.cs).
+          cp build/Release/speechwarp.dll bindings/dotnet/Speechwarp/runtimes/${{ matrix.rid }}/native/libspeechwarp.dll
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.rid }}
@@ -106,3 +114,31 @@ jobs:
         with:
           name: nuget-package
           path: package/*.nupkg
+
+  publish:
+    # Only for version tags, and only once every native has built and the tests have passed everywhere.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: pack
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      id-token: write # lets nuget.org check that the upload comes from this workflow
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+      - name: Check the tag matches the version being published
+        run: |
+          ls *.nupkg
+          test -f "Speechwarp.${GITHUB_REF_NAME#v}.nupkg" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in Speechwarp.csproj"; exit 1; }
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - run: >
+          dotnet nuget push "Speechwarp.${GITHUB_REF_NAME#v}.nupkg"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
