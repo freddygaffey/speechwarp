@@ -60,3 +60,11 @@ if(SPEECHWARP_BUILD_TOOLS)
     -DTOOL=$<TARGET_FILE:speechwarp_tool> -DMAKE_WAV=$<TARGET_FILE:make_wav> -DDIR=${CMAKE_CURRENT_BINARY_DIR}
     -P ${CMAKE_CURRENT_SOURCE_DIR}/check_tool.cmake)
 endif()
+
+add_executable(test_trainer test_trainer.c)
+target_link_libraries(test_trainer PRIVATE speechwarp_static)
+target_include_directories(test_trainer PRIVATE ../src)
+if(speechwarp_has_libm)
+  target_link_libraries(test_trainer PRIVATE m)
+endif()
+add_test(NAME trainer COMMAND test_trainer)
