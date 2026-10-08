@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/freddygaffey/speechwarp.git",
+    "url": "git+https://github.com/fredgaffey/speechwarp.git",
     "directory": "bindings/js"
   },
   "keywords": ["speech", "audio", "time-stretch", "speed", "sonic", "speedy", "audiobook", "wasm", "audioworklet"],

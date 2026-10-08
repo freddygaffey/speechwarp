@@ -1,11 +1,16 @@
 name: JavaScript
 
 # Builds the WebAssembly package and runs its tests in Node. The packed package is left as an artifact.
-# Nothing is published.
+#
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that tested package to npm.
+# npm trusts this workflow directly ("trusted publishing"), so no token is stored here; the trust is set up on
+# npmjs.com for this repository, this file and the environment `npm`. The tag also publishes to PyPI
+# (python.yml).
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -31,3 +36,28 @@ jobs:
         with:
           name: npm-package
           path: bindings/js/*.tgz
+
+  publish:
+    # Only for version tags, and only once the package has built and passed its tests.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # lets npm check that the upload comes from this workflow
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest # trusted publishing needs npm 11.5.1 or later
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+      - name: Check the tag matches the version being published
+        run: |
+          ls *.tgz
+          test -f "speechwarp-${GITHUB_REF_NAME#v}.tgz" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/js/package.json"; exit 1; }
+      # The tarball the build job tested, so nothing is rebuilt here. Provenance is added automatically.
+      - run: npm publish "speechwarp-${GITHUB_REF_NAME#v}.tgz" --access public
