@@ -1,5 +1,14 @@
 # speechwarp
 
+[![PyPI](https://img.shields.io/pypi/v/speechwarp?label=PyPI)](https://pypi.org/project/speechwarp/)
+[![npm](https://img.shields.io/npm/v/speechwarp?label=npm)](https://www.npmjs.com/package/speechwarp)
+[![NuGet](https://img.shields.io/nuget/v/Speechwarp?label=NuGet)](https://www.nuget.org/packages/Speechwarp)
+[![crates.io](https://img.shields.io/crates/v/speechwarp?label=crates.io)](https://crates.io/crates/speechwarp)
+[![pub.dev](https://img.shields.io/pub/v/speechwarp?label=pub.dev)](https://pub.dev/packages/speechwarp)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.fredgaffey/speechwarp?label=Maven%20Central)](https://central.sonatype.com/namespace/io.github.fredgaffey)
+[![React Native](https://img.shields.io/npm/v/react-native-speechwarp?label=react-native)](https://www.npmjs.com/package/react-native-speechwarp)
+[![Go](https://pkg.go.dev/badge/github.com/fredgaffey/speechwarp/bindings/go.svg)](https://pkg.go.dev/github.com/fredgaffey/speechwarp/bindings/go)
+
 Nonlinear speed-up for speech: listen faster and still follow it.
 
 Ordinary speed-up compresses everything by the same amount. People who talk fast do not: they hurry through
@@ -8,7 +17,7 @@ speechwarp does the same, so speech stays easier to follow at high speeds.
 
 It packages Google's [Speedy](https://github.com/google/speedy) algorithm (a reimplementation of MACH1:
 Covell, Withgott and Slaney, ICASSP 1998) together with the [Sonic](https://github.com/waywardgeek/sonic)
-library it drives, behind one small C API, with bindings for other languages to follow.
+library it drives, behind one small C API, with bindings for many languages.
 
 **This is not an official Google product.** It redistributes their Apache-2.0 code; see [NOTICE](NOTICE).
 
@@ -24,13 +33,34 @@ but have had no other use yet. Bindings:
 | Swift | [`bindings/swift/`](bindings/swift/) | macOS, iOS, tvOS, watchOS |
 | Kotlin / Java | [`bindings/android/`](bindings/android/) | Android 5.0 and later |
 | JavaScript / TypeScript | [`bindings/js/`](bindings/js/) | browsers, Node, AudioWorklet (WebAssembly) |
-| Dart / Flutter | [`bindings/flutter/`](bindings/flutter/) | Android, iOS, macOS, Linux, Windows |
+| Dart / Flutter | [`bindings/flutter/`](bindings/flutter/) | Android, iOS, macOS, Linux, Windows, web |
 | React Native | [`bindings/react-native/`](bindings/react-native/) | Android, iOS (New Architecture) |
 | Rust | [`bindings/rust/`](bindings/rust/) | anywhere with a C compiler |
 | Go | [`bindings/go/`](bindings/go/) | anywhere with a C compiler (cgo) |
 | Java (desktop) | [`bindings/java/`](bindings/java/) | Linux, macOS, Windows |
 
-Nothing is published to a package registry yet.
+## Installing
+
+Every package is published from this repository's GitHub Actions on each release, built and tested on the
+platforms it supports.
+
+| Language | Registry | Install |
+|----------|----------|---------|
+| Python | [PyPI](https://pypi.org/project/speechwarp/) | `pip install speechwarp` |
+| JavaScript / TypeScript | [npm](https://www.npmjs.com/package/speechwarp) | `npm install speechwarp` |
+| C# / .NET | [NuGet](https://www.nuget.org/packages/Speechwarp) | `dotnet add package Speechwarp` |
+| Rust | [crates.io](https://crates.io/crates/speechwarp) | `cargo add speechwarp` |
+| Dart / Flutter | [pub.dev](https://pub.dev/packages/speechwarp) | `flutter pub add speechwarp` |
+| React Native | [npm](https://www.npmjs.com/package/react-native-speechwarp) | `npm install react-native-speechwarp` |
+| Go | [pkg.go.dev](https://pkg.go.dev/github.com/fredgaffey/speechwarp/bindings/go) | `go get github.com/fredgaffey/speechwarp/bindings/go` |
+| Kotlin (Android) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp-android) | `implementation("io.github.fredgaffey:speechwarp-android:0.3.6")` |
+| Java (desktop) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp) | `implementation("io.github.fredgaffey:speechwarp:0.3.6")` |
+| Swift | Swift Package Manager | `.package(url: "https://github.com/fredgaffey/speechwarp", from: "0.3.6")`, product `Speechwarp` |
+| C | source | build with CMake, below |
+
+The Maven lines are for Gradle (`build.gradle.kts`); with Maven, use group `io.github.fredgaffey`, artifact
+`speechwarp-android` or `speechwarp`. For Swift, add the package in Xcode under File, Add Package
+Dependencies, or in `Package.swift` as shown. Each binding's README has a first example.
 
 ## Documentation
 
@@ -56,7 +86,7 @@ This builds the static and shared libraries, the `speechwarp` tool and the tests
 installs the libraries, `speechwarp.h` and a CMake package, which another project uses with
 `find_package(speechwarp)` and the target `speechwarp::shared` or `speechwarp::static`.
 
-Without CMake, compile the five files in `src/` with `include/` and `third_party/kissfft/` on the include
+Without CMake, compile the six `.c` files in `src/` with `include/` and `third_party/kissfft/` on the include
 path, and with `NDEBUG` defined: the upstream code is full of assertions.
 
 ## The command-line tool
