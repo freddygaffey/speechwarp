@@ -1,3 +1,7 @@
+## 0.3.5
+
+No changes; published from GitHub.
+
 ## 0.3.4
 
 The first release on pub.dev. The C sources now travel inside the package.

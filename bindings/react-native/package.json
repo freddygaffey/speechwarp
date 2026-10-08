@@ -1,6 +1,6 @@
 {
   "name": "react-native-speechwarp",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Nonlinear speed-up for speech: listen faster and still follow it",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

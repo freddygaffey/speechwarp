@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5
+
+No changes to the library. The first release that every registry publishes from GitHub with no stored
+token (React Native on npm, crates.io and pub.dev switch to trusted publishing).
+
 ## 0.3.4
 
 The first release from GitHub to every registry; 0.3.1 to 0.3.3 were tags only and were never published.

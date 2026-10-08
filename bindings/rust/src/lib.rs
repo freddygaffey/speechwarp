@@ -195,7 +195,7 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// The version of the C library, such as "0.3.4".
+/// The version of the C library, such as "0.3.5".
 pub fn version() -> &'static str {
     // SAFETY: the library returns a pointer to a string literal.
     unsafe { CStr::from_ptr(speechwarp_version()) }.to_str().unwrap_or("")
