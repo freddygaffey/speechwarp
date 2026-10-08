@@ -3,7 +3,7 @@ name: Python
 # Builds a wheel for every platform and Python version and runs the tests against each. The wheels and the
 # source distribution are left as artifacts.
 #
-# Pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) also publishes them to PyPI, once every
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes them to PyPI, once every
 # build has passed. PyPI trusts this workflow directly ("trusted publishing"), so no token is stored here; the
 # trust is set up on PyPI for this repository, this file and the environment `pypi`.
 

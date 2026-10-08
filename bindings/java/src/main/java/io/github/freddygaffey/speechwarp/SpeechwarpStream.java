@@ -62,7 +62,7 @@ public final class SpeechwarpStream implements AutoCloseable {
         this.channels = channels;
     }
 
-    /** The version of the native library, such as "0.2.0". */
+    /** The version of the native library, such as "0.3.0". */
     public static String libraryVersion() {
         return nativeVersion();
     }

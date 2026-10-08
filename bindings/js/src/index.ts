@@ -112,7 +112,7 @@ export function loadSync(): Speechwarp {
 
 /** The loaded library. Get one from `load` or `loadSync`. */
 export class Speechwarp {
-  /** The version of the C library, such as "0.2.0". */
+  /** The version of the C library, such as "0.3.0". */
   readonly version: string;
 
   /** @internal */
