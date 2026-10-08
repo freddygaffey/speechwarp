@@ -1,7 +1,8 @@
 name: Flutter release
 
 # Tests the Flutter package as pub.dev will hold it (the C sources copied into the package folder by
-# bindings/flutter/scripts/vendor.sh), then dry-runs the upload. Nothing is published except for a version tag.
+# bindings/flutter/scripts/vendor.sh, and the library compiled to WebAssembly for the web by scripts/build_web.sh,
+# which needs Emscripten), then dry-runs the upload. Nothing is published except for a version tag.
 #
 # Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that package to pub.dev.
 # pub.dev trusts this workflow directly (automated publishing with OIDC), so no token is stored here; the trust
@@ -30,8 +31,10 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      # This job tests the native side only, so it skips the WebAssembly: the package must analyse and run
+      # with lib/src/wasm_bytes.dart as the empty placeholder that git holds. The web is tested in `package`.
       - name: Copy the C sources into the package
-        run: sh scripts/vendor.sh
+        run: SPEECHWARP_SKIP_WEB=1 sh scripts/vendor.sh
       - name: Build the library for this computer
         working-directory: .
         run: cmake -B build -DSPEECHWARP_BUILD_TESTS=OFF && cmake --build build
@@ -52,8 +55,19 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Copy the C sources into the package
+      - uses: mymindstorm/setup-emsdk@v14
+      # Also builds lib/src/wasm_bytes.dart, the library as WebAssembly, which the web support needs.
+      - name: Copy the C sources into the package, and build the WebAssembly
         run: sh bindings/flutter/scripts/vendor.sh
+      # The WebAssembly is built into a file git holds as an empty placeholder, which pub would report as an
+      # uncommitted change; it is a build product here, so git is told to leave it out of its comparisons.
+      - run: git update-index --assume-unchanged bindings/flutter/lib/src/wasm_bytes.dart
+      - name: The web support works in Chrome
+        working-directory: bindings/flutter
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test --platform chrome
       - name: The native code builds without the rest of the repository
         run: |
           cp -R bindings/flutter "$RUNNER_TEMP/package"
@@ -66,11 +80,14 @@ jobs:
           flutter pub publish --dry-run | tee "$RUNNER_TEMP/dry-run.txt"
       - name: The upload holds the sources and the licences
         run: |
-          for f in LICENSE NOTICE CHANGELOG.md src/speechwarp/include/speechwarp.h src/speechwarp/src/speechwarp.c \
+          for f in LICENSE NOTICE CHANGELOG.md lib/src/wasm_bytes.dart src/speechwarp/include/speechwarp.h src/speechwarp/src/speechwarp.c \
                    src/speechwarp/third_party/sonic/LICENSE src/speechwarp/third_party/speedy/LICENSE \
                    src/speechwarp/third_party/kissfft/COPYING; do
             grep -q "${f##*/}" "$RUNNER_TEMP/dry-run.txt" || { echo "$f is missing from the package"; exit 1; }
           done
+          # The file is there; it must hold the WebAssembly and not git's empty placeholder.
+          test "$(wc -c < bindings/flutter/lib/src/wasm_bytes.dart)" -gt 10000 ||
+            { echo "lib/src/wasm_bytes.dart has no WebAssembly in it"; exit 1; }
 
   publish:
     # Only for version tags, and only once the package has been tested and the upload dry-run passed.
@@ -92,8 +109,14 @@ jobs:
         run: |
           test "v$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' pubspec.yaml)" = "$GITHUB_REF_NAME" ||
             { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/flutter/pubspec.yaml"; exit 1; }
-      - name: Copy the C sources into the package
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Copy the C sources into the package, and build the WebAssembly
         run: sh bindings/flutter/scripts/vendor.sh
+      - run: git update-index --assume-unchanged bindings/flutter/lib/src/wasm_bytes.dart
+      - name: The package holds the WebAssembly
+        run: |
+          test "$(wc -c < bindings/flutter/lib/src/wasm_bytes.dart)" -gt 10000 ||
+            { echo "lib/src/wasm_bytes.dart has no WebAssembly in it"; exit 1; }
       # pub uploads the folder, not an archive, so this is the package the other jobs checked, rebuilt from the
       # same commit.
       - name: Publish to pub.dev

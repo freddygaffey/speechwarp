@@ -1,5 +1,6 @@
 # Used by `flutter pub publish` in place of .gitignore, which would leave out the sources that
-# scripts/vendor.sh copies in (src/speechwarp/, LICENSE, NOTICE).
+# scripts/vendor.sh copies in (src/speechwarp/, LICENSE, NOTICE). It also keeps lib/src/wasm_bytes.dart, which
+# scripts/build_web.sh fills with the WebAssembly and which git holds only as an empty placeholder.
 .dart_tool/
 .flutter-plugins-dependencies
 /pubspec.lock

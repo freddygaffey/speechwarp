@@ -1,13 +1,19 @@
 // A small app that proves the plugin works on the device it runs on: it makes a test signal, speeds it up,
 // and shows what came out. It plays no sound. To play audio, hand what SpeechwarpStream.read() returns to an
-// audio output package, and do the work in an isolate if it would hold up the UI.
+// audio output package, and do the work in an isolate if it would hold up the UI (on the web there are no
+// isolates to use here; the work runs on the page's thread).
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:speechwarp/speechwarp.dart';
 
-void main() => runApp(const ExampleApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // On the web this loads the WebAssembly, so it must be waited for; everywhere else it completes at once.
+  await Speechwarp.initialize();
+  runApp(const ExampleApp());
+}
 
 const sampleRate = 44100;
 

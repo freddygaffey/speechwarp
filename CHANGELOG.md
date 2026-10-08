@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Flutter on the web.** The Flutter package now supports Flutter web, with the same classes, over the library
+  compiled to WebAssembly (built by `bindings/flutter/scripts/build_web.sh`, which needs Emscripten, and
+  carried inside the pub.dev package). New `Speechwarp.initialize()`: await it once at start-up; on the web it
+  loads the WebAssembly, elsewhere it completes at once. Existing native apps need no changes.
+
 ## 0.3.5
 
 No changes to the library. The first release that every registry publishes from GitHub with no stored

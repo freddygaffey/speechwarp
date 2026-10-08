@@ -92,14 +92,22 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - uses: mymindstorm/setup-emsdk@v14
       - name: Build the library for this computer
         run: cmake -B build -DSPEECHWARP_BUILD_TESTS=OFF && cmake --build build
       - name: Dart tests
         working-directory: bindings/flutter
         run: |
           flutter pub get
-          flutter analyze
+          flutter analyze   # with lib/src/wasm_bytes.dart as the empty placeholder git holds
           SPEECHWARP_LIBRARY=$GITHUB_WORKSPACE/build/libspeechwarp.dylib flutter test
+      # Writes lib/src/wasm_bytes.dart, the library as WebAssembly, for the web.
+      - name: Dart tests in Chrome, against the WebAssembly
+        working-directory: bindings/flutter
+        run: |
+          sh scripts/build_web.sh
+          flutter analyze
+          flutter test --platform chrome
       - name: In the real app on macOS
         working-directory: bindings/flutter/example
         run: flutter test integration_test -d macos

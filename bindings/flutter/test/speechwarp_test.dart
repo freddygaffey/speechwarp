@@ -1,13 +1,20 @@
-// Runs on this computer's Dart VM, so it needs the library built for this computer:
+// On this computer's Dart VM, this needs the library built for this computer:
 //
 //     cmake -B build && cmake --build build          (at the top of the repository)
 //     SPEECHWARP_LIBRARY=$PWD/build/libspeechwarp.dylib flutter test     (.so on Linux)
-import 'dart:io';
+//
+// In a browser, it needs the WebAssembly that scripts/build_web.sh makes (it needs Emscripten):
+//
+//     sh scripts/build_web.sh && flutter test --platform chrome
+//
+// The same tests run on both.
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:speechwarp/speechwarp.dart';
+
+import 'source_files.dart';
 
 const rate = 22050;
 
@@ -40,9 +47,22 @@ Float32List speedUp(Float32List input, double speed, {double nonlinear = 1}) {
 }
 
 void main() {
+  setUpAll(Speechwarp.initialize);
+
+  test('initialize is ready, and stays ready when called again', () async {
+    expect(Speechwarp.isInitialized, isTrue);
+    await Speechwarp.initialize();
+    await Speechwarp.initialize();
+  });
+
   test('the version matches the header and the package', () {
-    final header = File('../../include/speechwarp.h').readAsStringSync();
-    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final header = readSourceFile('../../include/speechwarp.h');
+    final pubspec = readSourceFile('pubspec.yaml');
+    if (header == null || pubspec == null) {
+      // In a browser the files cannot be read; the WebAssembly was built from the header, so say what it is.
+      expect(SpeechwarpStream.libraryVersion, matches(RegExp(r'^\d+\.\d+\.\d+')));
+      return;
+    }
     final version = RegExp(r'#define SPEECHWARP_VERSION "(.*)"').firstMatch(header)!.group(1);
     expect(SpeechwarpStream.libraryVersion, version);
     expect(RegExp(r'^version: (\S+)', multiLine: true).firstMatch(pubspec)!.group(1), version);

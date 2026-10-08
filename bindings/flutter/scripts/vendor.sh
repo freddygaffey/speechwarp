@@ -6,6 +6,10 @@
 #
 # When the copy is there, every build uses it; when it is not, the builds fall back to the repository's own
 # sources. So after changing the C sources, run this again or delete src/speechwarp/.
+#
+# It also runs scripts/build_web.sh, which compiles the library to WebAssembly into lib/src/wasm_bytes.dart (the
+# web support) and needs Emscripten. Without emcc this stops with an error rather than leave the web support
+# out of the package; set SPEECHWARP_SKIP_WEB=1 to do the rest anyway, for work that is not going to publish.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 root=$(cd "$here/../.." && pwd)
@@ -21,3 +25,9 @@ cp "$root"/src/*.c "$root"/src/*.h "$out/src/"
 cp -R "$root/third_party" "$out/third_party"
 # pub.dev wants LICENSE at the top of the package.
 cp "$root/LICENSE" "$root/NOTICE" "$here/"
+
+if [ "${SPEECHWARP_SKIP_WEB:-}" = 1 ]; then
+  echo "SPEECHWARP_SKIP_WEB is set: lib/src/wasm_bytes.dart left as it is; a package published now has no web support" >&2
+else
+  sh "$here/scripts/build_web.sh"
+fi

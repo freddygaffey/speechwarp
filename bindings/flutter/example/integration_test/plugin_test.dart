@@ -11,6 +11,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('the native library loads and speeds audio up', (tester) async {
+    await Speechwarp.initialize();
     expect(SpeechwarpStream.libraryVersion, matches(RegExp(r'^\d+\.\d+\.\d+$')));
 
     final input = testSignal();
