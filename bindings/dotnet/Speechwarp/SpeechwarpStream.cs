@@ -161,6 +161,50 @@ public sealed unsafe class SpeechwarpStream : IDisposable
         }
     }
 
+    /// <summary>
+    /// Heard pause, in seconds: keeps each pause about this long in the output, whatever the speed. 0 means off.
+    /// Read-only; set with <see cref="SetHeardPause"/>. The value last set, also while the rule is off.
+    /// </summary>
+    public float HeardPause => Native.speechwarp_get_heard_pause(_handle);
+
+    /// <summary>The speed below which <see cref="HeardPause"/> leaves pauses alone. Read-only.</summary>
+    public float HeardPauseFrom => Native.speechwarp_get_heard_pause_from(_handle);
+
+    /// <summary>
+    /// Keeps each pause about <paramref name="seconds"/> long in the output. The <see cref="PauseCap"/> in force is
+    /// <paramref name="seconds"/> times the current speed, clamped to 0.03 to 0.4 s of input; below
+    /// <paramref name="fromSpeed"/> pauses are left alone (pause cap 0). A NaN argument ignores the call.
+    /// </summary>
+    /// <param name="seconds">0 turns the rule off (and the pause cap with it); otherwise 0.002 to 0.4. Sensible: 0.015 to 0.06.</param>
+    /// <param name="fromSpeed">1 to 20. Sensible: 3.</param>
+    public void SetHeardPause(float seconds, float fromSpeed) =>
+        Native.speechwarp_set_heard_pause(_handle, seconds, fromSpeed);
+
+    /// <summary>
+    /// Floor blend fraction: the largest <see cref="SpeedFloor"/> the rule gives, reached at
+    /// <see cref="FloorBlendFull"/>. 0 means off. Read-only; set with <see cref="SetFloorBlend"/>.
+    /// </summary>
+    public float FloorBlend => Native.speechwarp_get_floor_blend(_handle);
+
+    /// <summary>The speed below which the blended speed floor is 0. Read-only.</summary>
+    public float FloorBlendFrom => Native.speechwarp_get_floor_blend_from(_handle);
+
+    /// <summary>The speed from which the blended speed floor is <see cref="FloorBlend"/>. Read-only.</summary>
+    public float FloorBlendFull => Native.speechwarp_get_floor_blend_full(_handle);
+
+    /// <summary>
+    /// Makes the speed floor follow the speed: 0 below <paramref name="fromSpeed"/>, rising linearly to
+    /// <paramref name="fraction"/> at <paramref name="fullSpeed"/>, and <paramref name="fraction"/> above, so a
+    /// speed ramp never changes the sound in a jump. If <paramref name="fullSpeed"/> is not above
+    /// <paramref name="fromSpeed"/> the floor steps to <paramref name="fraction"/> at <paramref name="fromSpeed"/>.
+    /// A NaN argument ignores the call.
+    /// </summary>
+    /// <param name="fraction">0 turns the rule off (and the floor with it); otherwise up to 1.</param>
+    /// <param name="fromSpeed">1 to 20. Sensible: 4.</param>
+    /// <param name="fullSpeed">1 to 20. Sensible: 6.</param>
+    public void SetFloorBlend(float fraction, float fromSpeed, float fullSpeed) =>
+        Native.speechwarp_set_floor_blend(_handle, fraction, fromSpeed, fullSpeed);
+
     private static float NotNaN(float value) =>
         float.IsNaN(value) ? throw new ArgumentOutOfRangeException(nameof(value), value, "Must be a number.") : value;
 

@@ -104,6 +104,174 @@ internal static unsafe partial class Native
 
     [LibraryImport(Library)]
     internal static partial long speechwarp_position(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_heard_pause(StreamHandle stream, float seconds, float fromSpeed);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_heard_pause(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_heard_pause_from(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_set_floor_blend(StreamHandle stream, float fraction, float fromSpeed, float fullSpeed);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_floor_blend(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_floor_blend_from(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial float speechwarp_get_floor_blend_full(StreamHandle stream);
+
+    [LibraryImport(Library)]
+    internal static partial nint speechwarp_syllables_create(int sampleRate, int channels);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_syllables_destroy(nint counter);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_syllables_write(SyllablesHandle counter, float* samples, int frames);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_syllables_write_i16(SyllablesHandle counter, short* samples, int frames);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_syllables_rate(SyllablesHandle counter, double windowSeconds, double minimumSeconds);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_syllables_reset(SyllablesHandle counter);
+
+    [LibraryImport(Library)]
+    internal static partial nint speechwarp_trainer_create(ulong seed);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trainer_destroy(nint trainer);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trainer_set_weight(TrainerHandle trainer, int kind, double weight);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_get_weight(TrainerHandle trainer, int kind);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trainer_set_param(TrainerHandle trainer, int param, double value);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_get_param(TrainerHandle trainer, int param);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_add_measure(TrainerHandle trainer, int kind, double score, double items, double rate, double time);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trainer_test_begin(TrainerHandle trainer, double priorRate, double time);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_test_rate(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_test_done(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_test_end(TrainerHandle trainer, double time);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_threshold(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_threshold_low(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_threshold_high(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trainer_session_begin(TrainerHandle trainer, int plan, double time);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_session_rate(TrainerHandle trainer, double time);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_session_end(TrainerHandle trainer, double listeningHours, double time);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_add_retention(TrainerHandle trainer, int session, double score, double items, double delaySeconds, double time);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_next_plan(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_plan_effect(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_plan_effect_sd(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_plan_retention(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_plan_retention_sd(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trainer_plan_sessions(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_plan_best_probability(TrainerHandle trainer, int plan);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_trend(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trainer_trend_sd(TrainerHandle trainer);
+
+    [LibraryImport(Library)]
+    internal static partial nint speechwarp_trials_create(ulong seed);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trials_destroy(nint trials);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_add_setting(TrialsHandle trials);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_add_value(TrialsHandle trials, int setting, double value);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trials_set_available(TrialsHandle trials, int setting, int available);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_add(TrialsHandle trials, int setting, double speed, double firstValue, double secondValue, double firstScore, double secondScore, int preferred);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_next(TrialsHandle trials, double speed);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trials_next_first(TrialsHandle trials);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trials_next_second(TrialsHandle trials);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_won(TrialsHandle trials, int setting, double speed, int value);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_lost(TrialsHandle trials, int setting, double speed, int value);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_tied(TrialsHandle trials, int setting, double speed, int value);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_heard(TrialsHandle trials, int setting, double speed, int value);
+
+    [LibraryImport(Library)]
+    internal static partial double speechwarp_trials_mean_score(TrialsHandle trials, int setting, double speed, int value);
+
+    [LibraryImport(Library)]
+    internal static partial int speechwarp_trials_winner(TrialsHandle trials, int setting, double speed);
+
+    [LibraryImport(Library)]
+    internal static partial void speechwarp_trials_set_confidence(TrialsHandle trials, double confidence);
 }
 
 /// <summary>Owns a native stream, so it is freed even if the wrapper is never disposed.</summary>
@@ -116,6 +284,48 @@ internal sealed class StreamHandle : SafeHandle
     protected override bool ReleaseHandle()
     {
         Native.speechwarp_destroy(handle);
+        return true;
+    }
+}
+
+/// <summary>Owns a native syllable counter.</summary>
+internal sealed class SyllablesHandle : SafeHandle
+{
+    public SyllablesHandle(nint counter) : base(0, ownsHandle: true) => SetHandle(counter);
+
+    public override bool IsInvalid => handle == 0;
+
+    protected override bool ReleaseHandle()
+    {
+        Native.speechwarp_syllables_destroy(handle);
+        return true;
+    }
+}
+
+/// <summary>Owns a native listener trainer.</summary>
+internal sealed class TrainerHandle : SafeHandle
+{
+    public TrainerHandle(nint trainer) : base(0, ownsHandle: true) => SetHandle(trainer);
+
+    public override bool IsInvalid => handle == 0;
+
+    protected override bool ReleaseHandle()
+    {
+        Native.speechwarp_trainer_destroy(handle);
+        return true;
+    }
+}
+
+/// <summary>Owns a native set of blind trials.</summary>
+internal sealed class TrialsHandle : SafeHandle
+{
+    public TrialsHandle(nint trials) : base(0, ownsHandle: true) => SetHandle(trials);
+
+    public override bool IsInvalid => handle == 0;
+
+    protected override bool ReleaseHandle()
+    {
+        Native.speechwarp_trials_destroy(handle);
         return true;
     }
 }
