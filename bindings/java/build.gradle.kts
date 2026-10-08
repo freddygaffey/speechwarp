@@ -1,6 +1,10 @@
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
+
 plugins {
     `java-library`
-    `maven-publish`
+    id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
 // The version lives in the public C header, as it does for every other build of the library.
@@ -16,8 +20,6 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(providers.gradleProperty("speechwarp.jdk").getOrElse("21")))
     }
-    withSourcesJar()
-    withJavadocJar()
 }
 tasks.withType<JavaCompile>().configureEach { options.release.set(11) }
 
@@ -61,7 +63,11 @@ val buildNative by tasks.registering {
 }
 sourceSets.main { resources.srcDir(nativeResources) }
 tasks.processResources { dependsOn(buildNative) }
-tasks.named("sourcesJar") { dependsOn(buildNative) }
+// The sources JAR should hold sources, not the compiled native libraries that sit among the resources.
+tasks.withType<Jar>().matching { it.name == "sourcesJar" }.configureEach {
+    dependsOn(buildNative)
+    exclude("natives/**")
+}
 
 // Native libraries built elsewhere (by CI, for the other systems) go in extra-natives/natives/... and are
 // packed too.
@@ -84,21 +90,43 @@ tasks.jar {
     }
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            from(components["java"])
-            pom {
-                name.set("speechwarp")
-                description.set("Nonlinear speed-up for speech: listen faster and still follow it")
-                url.set("https://github.com/fredgaffey/speechwarp")
-                licenses {
-                    license {
-                        name.set("Apache-2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                    }
-                }
+// Published to Maven Central as io.github.fredgaffey:speechwarp (the Android AAR is
+// io.github.fredgaffey:speechwarp-android). The sources and javadoc JARs and the POM details are what Central
+// requires.
+mavenPublishing {
+    configure(JavaLibrary(javadocJar = JavadocJar.Javadoc(), sourcesJar = SourcesJar.Sources()))
+    coordinates("io.github.fredgaffey", "speechwarp", version.toString())
+    publishToMavenCentral(automaticRelease = true)
+    pom {
+        name.set("speechwarp")
+        description.set("Nonlinear speed-up for speech on the JVM: listen faster and still follow it. Carries native libraries for macOS, Linux and Windows.")
+        inceptionYear.set("2026")
+        url.set("https://github.com/fredgaffey/speechwarp")
+        licenses {
+            license {
+                name.set("Apache-2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
             }
         }
+        developers {
+            developer {
+                id.set("fredgaffey")
+                name.set("Fred Gaffey")
+                url.set("https://github.com/fredgaffey")
+            }
+        }
+        scm {
+            url.set("https://github.com/fredgaffey/speechwarp")
+            connection.set("scm:git:https://github.com/fredgaffey/speechwarp.git")
+            developerConnection.set("scm:git:ssh://git@github.com/fredgaffey/speechwarp.git")
+        }
+    }
+
+    // Maven Central needs signed files, but a local build has no key. The release workflow supplies one
+    // (SIGNING_KEY and SIGNING_PASSWORD) as the signingInMemoryKey properties; without it nothing is signed, so
+    // publishToMavenLocal still works.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
     }
 }

@@ -1,0 +1,168 @@
+name: Maven Central
+
+# Builds and tests the two JVM packages, and checks that each is complete as Maven Central needs it:
+#   io.github.fredgaffey:speechwarp-android  the Kotlin AAR for Android (native code for four ABIs)
+#   io.github.fredgaffey:speechwarp          the desktop Java JAR (native libraries for every system inside)
+# The desktop natives are built on each system and then put into one JAR, as in more-bindings.yml.
+#
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes both to Maven Central through
+# the Central Portal, once everything has built and passed. Central has no keyless ("trusted") publishing, so
+# this is the one workflow here that needs secrets. They belong to the GitHub environment `maven-central`:
+#   MAVEN_CENTRAL_USERNAME  the username half of a user token made on https://central.sonatype.com
+#   MAVEN_CENTRAL_PASSWORD  the password half of that same token (not the account password)
+#   SIGNING_KEY             the ASCII-armoured private GPG key that signs the files (gpg --armor --export-secret-keys)
+#   SIGNING_PASSWORD        the passphrase of that key
+# Without a tag nothing is signed or published, so pull requests and pushes to main are a dry run.
+# The release goes out as soon as Central's checks pass; a version on Central can never be changed or removed.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  java-natives:
+    name: java natives ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+    defaults:
+      run:
+        working-directory: bindings/java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Test
+        run: ./gradlew build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-natives-${{ matrix.os }}
+          path: bindings/java/build/native-resources/natives
+
+  java-jar:
+    name: java jar for every system
+    needs: java-natives
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: java-natives-*
+          merge-multiple: true
+          path: bindings/java/extra-natives/natives
+      - name: Build, test and install into a local Maven repository
+        run: ./gradlew build publishToMavenLocal
+      - name: Check the JAR carries a native library for every system and the licences
+        run: |
+          jar="build/libs/speechwarp-$(sed -n 's/^#define SPEECHWARP_VERSION "\(.*\)"/\1/p' ../../include/speechwarp.h).jar"
+          unzip -l "$jar"
+          for f in natives/macos-arm64/libspeechwarp_jni.dylib natives/macos-x64/libspeechwarp_jni.dylib \
+                   natives/linux-x64/libspeechwarp_jni.so natives/linux-arm64/libspeechwarp_jni.so \
+                   natives/windows-x64/speechwarp_jni.dll META-INF/licenses/speechwarp/LICENSE \
+                   META-INF/licenses/speechwarp/NOTICE; do
+            unzip -l "$jar" | grep -q " $f\$" || { echo "Missing from the JAR: $f"; exit 1; }
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-jar
+          path: bindings/java/build/libs/*.jar
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Test
+        run: ./gradlew :speechwarp:testReleaseUnitTest
+      - name: Build the AAR and install it into a local Maven repository
+        run: ./gradlew :speechwarp:publishToMavenLocal
+      - name: Check the AAR carries every ABI and the licences
+        run: |
+          aar="speechwarp/build/outputs/aar/speechwarp-release.aar"
+          unzip -l "$aar"
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            unzip -l "$aar" | grep -q " jni/$abi/libspeechwarp_jni.so\$" || { echo "Missing from the AAR: $abi"; exit 1; }
+          done
+          unzip -p "$aar" classes.jar > "$RUNNER_TEMP/classes.jar"
+          unzip -l "$RUNNER_TEMP/classes.jar" | grep -q " META-INF/licenses/speechwarp/LICENSE\$" ||
+            { echo "The licences are missing from the AAR"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aar
+          path: bindings/android/speechwarp/build/outputs/aar/*.aar
+
+  publish:
+    # Only for version tags, and only once the desktop natives, the JAR and the AAR have built and passed their tests.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [java-jar, android]
+    runs-on: ubuntu-latest
+    environment: maven-central
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the version being published
+        run: |
+          version=$(sed -n 's/^#define SPEECHWARP_VERSION "\(.*\)"/\1/p' include/speechwarp.h)
+          test "$GITHUB_REF_NAME" = "v$version" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version $version in include/speechwarp.h"; exit 1; }
+      - name: Check the signing key and Central token are set
+        env:
+          # Gradle reads properties set this way. The secrets are given to the steps that need them and no others.
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          for name in ORG_GRADLE_PROJECT_mavenCentralUsername ORG_GRADLE_PROJECT_mavenCentralPassword \
+                      ORG_GRADLE_PROJECT_signingInMemoryKey ORG_GRADLE_PROJECT_signingInMemoryKeyPassword; do
+            test -n "${!name}" || { echo "A secret is missing: see the header of release-maven.yml"; exit 1; }
+          done
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      # The natives are the ones the java-natives jobs built and tested; the JAR is then put together from them.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: java-natives-*
+          merge-multiple: true
+          path: bindings/java/extra-natives/natives
+      - name: Publish the desktop JAR (io.github.fredgaffey:speechwarp)
+        working-directory: bindings/java
+        env:
+          # Gradle reads properties set this way. The secrets are given to the steps that need them and no others.
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew publishToMavenCentral --no-configuration-cache
+      - name: Publish the Android AAR (io.github.fredgaffey:speechwarp-android)
+        working-directory: bindings/android
+        env:
+          # Gradle reads properties set this way. The secrets are given to the steps that need them and no others.
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew :speechwarp:publishToMavenCentral --no-configuration-cache

@@ -47,6 +47,14 @@ stream.rhythmRate = 6f    // ...six times a second
 `syllableRate` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
 speed for the rate heard. It is `null` until 10 s have been written.
 
+## Getting it
+
+From Maven Central, once a release has been published:
+
+```kotlin
+implementation("io.github.fredgaffey:speechwarp-android:0.3.0")
+```
+
 ## Building it here
 
 Needs the Android SDK with NDK 27.1.12297006 and CMake 3.22.1, a JDK, and `cmake` on the path for the tests.

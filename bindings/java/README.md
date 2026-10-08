@@ -50,6 +50,15 @@ stream.setRhythmRate(6);     // ...six times a second
 `syllableRate()` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
 speed for the rate heard. It is empty until 10 s have been written.
 
+## Getting it
+
+From Maven Central, once a release has been published (the JAR carries native libraries for macOS, Linux and
+Windows):
+
+```kotlin
+implementation("io.github.fredgaffey:speechwarp:0.3.0")
+```
+
 ## Building it here
 
 Needs a JDK and `cmake` on the path. The native code is the Android binding's, built for this computer.

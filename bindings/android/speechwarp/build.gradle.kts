@@ -1,9 +1,12 @@
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
-    `maven-publish`
+    id("com.vanniktech.maven.publish")
 }
 
 // The version lives in the public C header, as it does for every other build of the library.
@@ -42,12 +45,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
 kotlin {
@@ -55,6 +52,22 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_11)
     }
 }
+
+// The native code carries Sonic, Speedy and KISS FFT, so the licences travel in the AAR (inside classes.jar).
+val licenceFiles = layout.buildDirectory.dir("licence-resources")
+val collectLicences by tasks.registering(Sync::class) {
+    into(licenceFiles)
+    from(rootDir.resolve("../..")) {
+        include("LICENSE", "NOTICE")
+        into("META-INF/licenses/speechwarp")
+    }
+    from(rootDir.resolve("../../third_party")) {
+        include("*/LICENSE", "kissfft/COPYING", "kissfft/LICENSES/*")
+        into("META-INF/licenses/speechwarp/third_party")
+    }
+}
+android.sourceSets.getByName("main").resources.srcDir(licenceFiles)
+tasks.matching { it.name.endsWith("JavaRes") }.configureEach { dependsOn(collectLicences) }
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
@@ -80,22 +93,42 @@ tasks.withType<Test>().configureEach {
     systemProperty("speechwarp.header", rootDir.resolve("../../include/speechwarp.h").path)
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            artifactId = "speechwarp"
-            afterEvaluate { from(components["release"]) }
-            pom {
-                name.set("speechwarp")
-                description.set("Nonlinear speed-up for speech: listen faster and still follow it")
-                url.set("https://github.com/fredgaffey/speechwarp")
-                licenses {
-                    license {
-                        name.set("Apache-2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                    }
-                }
+// Published to Maven Central as io.github.fredgaffey:speechwarp-android (the desktop JAR is
+// io.github.fredgaffey:speechwarp). The sources and javadoc JARs and the POM details are what Central requires.
+mavenPublishing {
+    configure(AndroidSingleVariantLibrary(variant = "release", sourcesJar = SourcesJar.Sources(), javadocJar = JavadocJar.Javadoc()))
+    coordinates("io.github.fredgaffey", "speechwarp-android", libraryVersion)
+    publishToMavenCentral(automaticRelease = true)
+    pom {
+        name.set("speechwarp-android")
+        description.set("Nonlinear speed-up for speech on Android: listen faster and still follow it")
+        inceptionYear.set("2026")
+        url.set("https://github.com/fredgaffey/speechwarp")
+        licenses {
+            license {
+                name.set("Apache-2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
             }
         }
+        developers {
+            developer {
+                id.set("fredgaffey")
+                name.set("Fred Gaffey")
+                url.set("https://github.com/fredgaffey")
+            }
+        }
+        scm {
+            url.set("https://github.com/fredgaffey/speechwarp")
+            connection.set("scm:git:https://github.com/fredgaffey/speechwarp.git")
+            developerConnection.set("scm:git:ssh://git@github.com/fredgaffey/speechwarp.git")
+        }
+    }
+
+    // Maven Central needs signed files, but a local build has no key. The release workflow supplies one
+    // (SIGNING_KEY and SIGNING_PASSWORD) as the signingInMemoryKey properties; without it nothing is signed, so
+    // publishToMavenLocal still works.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
     }
 }
