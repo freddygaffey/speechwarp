@@ -1,6 +1,7 @@
 #
-# Builds the speechwarp C library into the app. The sources are at the top of the repository, which this
-# plugin is a folder of; the files in Classes/ include them.
+# Builds the speechwarp C library into the app. The files in Classes/ include the sources, which are in
+# ../src/speechwarp/ in a published package (copied in by ../scripts/vendor.sh) and at the top of the
+# repository otherwise.
 #
 Pod::Spec.new do |s|
   s.name             = 'speechwarp'
@@ -18,7 +19,7 @@ Sonic library. Not an official Google product.
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.15'
 
-  # The headers in Classes/ only forward to the repository's; they are not for apps to import.
+  # The headers in Classes/ only forward to the library's own; they are not for apps to import.
   s.project_header_files = 'Classes/*.h'
 
   s.pod_target_xcconfig = {

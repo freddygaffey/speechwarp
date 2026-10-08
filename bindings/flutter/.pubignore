@@ -1,0 +1,13 @@
+# Used by `flutter pub publish` in place of .gitignore, which would leave out the sources that
+# scripts/vendor.sh copies in (src/speechwarp/, LICENSE, NOTICE).
+.dart_tool/
+.flutter-plugins-dependencies
+/pubspec.lock
+/build/
+/coverage/
+**/doc/api/
+.DS_Store
+*.log
+*.swp
+.idea/
+*.iml

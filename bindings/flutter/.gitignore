@@ -31,3 +31,8 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
+
+# The C library's sources and the licence files, copied in by scripts/vendor.sh before publishing.
+/src/speechwarp/
+/LICENSE
+/NOTICE

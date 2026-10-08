@@ -3,8 +3,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(speechwarp_library LANGUAGES C)
 
-# The C sources are at the top of the repository, which this plugin is a folder of.
-set(root "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+# The C sources are in speechwarp/ in a published package, where scripts/vendor.sh copied them to, laid out as
+# at the top of the repository. In the repository, without that copy, the sources at its top are used.
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/speechwarp/include/speechwarp.h")
+  set(root "${CMAKE_CURRENT_SOURCE_DIR}/speechwarp")
+else()
+  set(root "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+endif()
 
 add_library(speechwarp SHARED
   "${root}/src/speechwarp.c"

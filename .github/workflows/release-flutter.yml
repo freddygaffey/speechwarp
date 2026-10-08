@@ -1,0 +1,103 @@
+name: Flutter release
+
+# Tests the Flutter package as pub.dev will hold it (the C sources copied into the package folder by
+# bindings/flutter/scripts/vendor.sh), then dry-runs the upload. Nothing is published except for a version tag.
+#
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that package to pub.dev.
+# pub.dev trusts this workflow directly (automated publishing with OIDC), so no token is stored here; the trust
+# is set up on pub.dev under the package's Admin tab: repository fredgaffey/speechwarp, tag pattern
+# `v{{version}}`, and the required environment `pub.dev`. The very first version has to be published by hand
+# (flutter pub publish) so that the package exists to configure. The same tag publishes the other packages
+# (python.yml, js.yml and so on).
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: bindings/flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Copy the C sources into the package
+        run: sh scripts/vendor.sh
+      - name: Build the library for this computer
+        working-directory: .
+        run: cmake -B build -DSPEECHWARP_BUILD_TESTS=OFF && cmake --build build
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: SPEECHWARP_LIBRARY=$GITHUB_WORKSPACE/build/libspeechwarp.dylib flutter test
+      # Builds the plugin on macOS from the copied sources, as an app that depends on the package would.
+      - name: In the real app on macOS
+        working-directory: bindings/flutter/example
+        run: flutter test integration_test -d macos
+
+  package:
+    # The package on its own: copied out of the repository, its native code must still build, and pub.dev must
+    # accept it with no warnings.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Copy the C sources into the package
+        run: sh bindings/flutter/scripts/vendor.sh
+      - name: The native code builds without the rest of the repository
+        run: |
+          cp -R bindings/flutter "$RUNNER_TEMP/package"
+          cmake -S "$RUNNER_TEMP/package/src" -B "$RUNNER_TEMP/package-build"
+          cmake --build "$RUNNER_TEMP/package-build"
+      - name: Dry run of the upload
+        working-directory: bindings/flutter
+        run: |
+          flutter pub get
+          flutter pub publish --dry-run | tee "$RUNNER_TEMP/dry-run.txt"
+      - name: The upload holds the sources and the licences
+        run: |
+          for f in LICENSE NOTICE CHANGELOG.md src/speechwarp/include/speechwarp.h src/speechwarp/src/speechwarp.c \
+                   src/speechwarp/third_party/sonic/LICENSE src/speechwarp/third_party/speedy/LICENSE \
+                   src/speechwarp/third_party/kissfft/COPYING; do
+            grep -q "${f##*/}" "$RUNNER_TEMP/dry-run.txt" || { echo "$f is missing from the package"; exit 1; }
+          done
+
+  publish:
+    # Only for version tags, and only once the package has been tested and the upload dry-run passed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, package]
+    runs-on: ubuntu-latest
+    environment: pub.dev
+    permissions:
+      id-token: write # lets pub.dev check that the upload comes from this workflow
+    steps:
+      - uses: actions/checkout@v4
+      # Signs in to pub.dev with the OIDC token for the steps after it; no password or key is stored.
+      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Check the tag matches the version being published
+        working-directory: bindings/flutter
+        run: |
+          test "v$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' pubspec.yaml)" = "$GITHUB_REF_NAME" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/flutter/pubspec.yaml"; exit 1; }
+      - name: Copy the C sources into the package
+        run: sh bindings/flutter/scripts/vendor.sh
+      # pub uploads the folder, not an archive, so this is the package the other jobs checked, rebuilt from the
+      # same commit.
+      - name: Publish to pub.dev
+        working-directory: bindings/flutter
+        run: |
+          flutter pub get
+          flutter pub publish --force

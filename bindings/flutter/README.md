@@ -22,8 +22,15 @@ It is an FFI plugin for Android, iOS, macOS, Linux and Windows. There is no web 
 
 ## Installing
 
-The plugin compiles the C sources at the top of this repository, so depend on it through git, not by copying
-the folder:
+Add it from [pub.dev](https://pub.dev/packages/speechwarp):
+
+```yaml
+dependencies:
+  speechwarp: ^0.3.0
+```
+
+The package carries the C sources it compiles (and their licences), so nothing else is needed. To follow
+the repository instead, depend on it through git:
 
 ```yaml
 dependencies:
@@ -32,9 +39,6 @@ dependencies:
       url: https://github.com/fredgaffey/speechwarp
       path: bindings/flutter
 ```
-
-It is not on pub.dev: a pub.dev package cannot reach outside its own folder, and the sources would have to
-be copied into it first.
 
 - The speed is the speed you get, within a few percent. A nonlinear amount of 0 switches to plain, even
   speed-up and can be changed during playback.
