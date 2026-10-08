@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 const mockNative = {
-  version: jest.fn(() => '0.3.5'),
+  version: jest.fn(() => '0.3.6'),
   createStream: jest.fn((_rate: number, _channels: number) => 7),
   destroyStream: jest.fn(),
   setSpeed: jest.fn(),
@@ -105,7 +105,7 @@ beforeEach(() => {
 
 describe('Stream', () => {
   it('reports the version and limits', () => {
-    expect(version()).toBe('0.3.5');
+    expect(version()).toBe('0.3.6');
     expect([MIN_SPEED, MAX_SPEED]).toEqual([0.05, 20]);
   });
 

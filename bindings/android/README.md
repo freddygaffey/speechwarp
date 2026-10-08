@@ -52,7 +52,7 @@ speed for the rate heard. It is `null` until 10 s have been written.
 From Maven Central, once a release has been published:
 
 ```kotlin
-implementation("io.github.fredgaffey:speechwarp-android:0.3.5")
+implementation("io.github.fredgaffey:speechwarp-android:0.3.6")
 ```
 
 ## Building it here

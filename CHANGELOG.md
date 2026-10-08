@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.6
 
 - **Flutter on the web.** The Flutter package now supports Flutter web, with the same classes, over the library
   compiled to WebAssembly (built by `bindings/flutter/scripts/build_web.sh`, which needs Emscripten, and

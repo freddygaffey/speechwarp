@@ -19,7 +19,7 @@ public final class SpeechwarpStream {
     /// The slowest and fastest speeds that can be set.
     public static let speedRange: ClosedRange<Float> = 0.05...20
 
-    /// The version of the C library, such as "0.3.5".
+    /// The version of the C library, such as "0.3.6".
     public static var libraryVersion: String { String(cString: speechwarp_version()) }
 
     public let sampleRate: Int
