@@ -56,7 +56,7 @@ From Maven Central, once a release has been published (the JAR carries native li
 Windows):
 
 ```kotlin
-implementation("io.github.fredgaffey:speechwarp:0.3.0")
+implementation("io.github.fredgaffey:speechwarp:0.3.4")
 ```
 
 ## Building it here

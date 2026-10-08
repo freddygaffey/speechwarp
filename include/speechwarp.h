@@ -38,15 +38,15 @@ extern "C" {
 
 #define SPEECHWARP_VERSION_MAJOR 0
 #define SPEECHWARP_VERSION_MINOR 3
-#define SPEECHWARP_VERSION_PATCH 0
-#define SPEECHWARP_VERSION "0.3.0"
+#define SPEECHWARP_VERSION_PATCH 4
+#define SPEECHWARP_VERSION "0.3.4"
 
 #define SPEECHWARP_MIN_SPEED 0.05f
 #define SPEECHWARP_MAX_SPEED 20.0f
 
 typedef struct speechwarp_stream speechwarp_stream;
 
-/* The version of the library in use, e.g. "0.3.0". */
+/* The version of the library in use, e.g. "0.3.4". */
 SPEECHWARP_API const char* speechwarp_version(void);
 
 /* Create a stream. Returns NULL if the arguments are invalid or memory runs out. The sample rate must be

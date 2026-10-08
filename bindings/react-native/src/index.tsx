@@ -20,7 +20,7 @@ export const MIN_SPEED = 0.05;
 /** The fastest speed that can be set. */
 export const MAX_SPEED = 20;
 
-/** The version of the native library, such as "0.3.0". */
+/** The version of the native library, such as "0.3.4". */
 export function version(): string {
   return Native.version();
 }

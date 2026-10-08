@@ -5,7 +5,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'speechwarp'
-  s.version          = '0.3.0'
+  s.version          = '0.3.4'
   s.summary          = 'Nonlinear speed-up for speech.'
   s.description      = <<-DESC
 Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the

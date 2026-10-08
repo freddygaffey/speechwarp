@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.4
+
+The first release from GitHub to every registry; 0.3.1 to 0.3.3 were tags only and were never published.
+
+- Packages for crates.io (Rust), npm (React Native), NuGet (.NET), Maven Central (Android and desktop Java)
+  and pub.dev (Flutter), each published by a version tag.
+- .NET on Windows: the native library is now libspeechwarp.dll. As speechwarp.dll it had the same file name as
+  the managed Speechwarp.dll, so wherever both landed in one folder every call failed.
+- The project moved to github.com/fredgaffey/speechwarp. The Go module path is now
+  github.com/fredgaffey/speechwarp, and the Java and Kotlin package is io.github.fredgaffey.speechwarp.
+- The Android library on Maven Central is io.github.fredgaffey:speechwarp-android, separate from the desktop
+  Java io.github.fredgaffey:speechwarp.
+
 ## 0.3.0 (unreleased)
 
 Things any player can use to train for very high speeds. All off unless asked for; with them off, the output

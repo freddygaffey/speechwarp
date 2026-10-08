@@ -1,3 +1,7 @@
+## 0.3.4
+
+The first release on pub.dev. The C sources now travel inside the package.
+
 ## 0.3.0
 
 Rules that follow the speed, a syllable counter on its own, and the listener trainer and blind trials, all
