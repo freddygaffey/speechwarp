@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 /** What a score in 0 to 1 measures. */
 public enum TrainerMeasure {

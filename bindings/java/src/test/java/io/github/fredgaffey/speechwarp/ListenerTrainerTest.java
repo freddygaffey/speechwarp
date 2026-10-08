@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 /** Session plans: how the rate moves during a session. */
 public enum TrainerPlan {

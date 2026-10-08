@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 import java.util.OptionalDouble;
 

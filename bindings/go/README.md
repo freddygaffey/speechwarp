@@ -1,11 +1,11 @@
 # speechwarp for Go
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the Go binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 
 ```go
-import speechwarp "github.com/freddygaffey/speechwarp/bindings/go"
+import speechwarp "github.com/fredgaffey/speechwarp/bindings/go"
 
 stream, err := speechwarp.NewStream(44100, 2) // sample rate, channels
 defer stream.Close()

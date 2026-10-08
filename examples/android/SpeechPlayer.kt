@@ -6,7 +6,7 @@ package com.example.speechplayer
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
-import io.github.freddygaffey.speechwarp.SpeechwarpStream
+import io.github.fredgaffey.speechwarp.SpeechwarpStream
 import kotlin.concurrent.thread
 
 /** Where decoded audio comes from: interleaved 16-bit samples. */

@@ -1,7 +1,7 @@
 # speechwarp for JavaScript
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the JavaScript binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library, compiled to WebAssembly. It is not an official Google product.
 
 It is one ES module with the WebAssembly inside it (about 60 KB), with TypeScript types. It runs in browsers,

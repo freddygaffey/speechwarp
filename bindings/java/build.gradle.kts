@@ -5,7 +5,7 @@ plugins {
 
 // The version lives in the public C header, as it does for every other build of the library.
 val header = rootDir.resolve("../../include/speechwarp.h").readText()
-group = "io.github.freddygaffey"
+group = "io.github.fredgaffey"
 version = Regex("#define SPEECHWARP_VERSION \"(.*)\"").find(header)!!.groupValues[1]
 
 repositories {
@@ -91,7 +91,7 @@ publishing {
             pom {
                 name.set("speechwarp")
                 description.set("Nonlinear speed-up for speech: listen faster and still follow it")
-                url.set("https://github.com/freddygaffey/speechwarp")
+                url.set("https://github.com/fredgaffey/speechwarp")
                 licenses {
                     license {
                         name.set("Apache-2.0")

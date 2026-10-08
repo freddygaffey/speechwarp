@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 /** Tunable numbers of a {@link ListenerTrainer}, with their defaults. */
 public enum TrainerParam {

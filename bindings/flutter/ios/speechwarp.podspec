@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
 Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the
 Sonic library. Not an official Google product.
                        DESC
-  s.homepage         = 'https://github.com/freddygaffey/speechwarp'
+  s.homepage         = 'https://github.com/fredgaffey/speechwarp'
   s.license          = { :type => 'Apache-2.0' }
   s.author           = { 'The speechwarp contributors' => 'noreply@github.com' }
   s.source           = { :path => '.' }

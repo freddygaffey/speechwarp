@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp
+package io.github.fredgaffey.speechwarp
 
 /** One blind A/B trial to run: the [setting] to compare and its two values in the order to play them. */
 data class BlindTrial(val setting: Int, val first: Double, val second: Double)

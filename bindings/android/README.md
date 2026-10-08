@@ -1,11 +1,11 @@
 # speechwarp for Android
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the Kotlin binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 
 ```kotlin
-import io.github.freddygaffey.speechwarp.SpeechwarpStream
+import io.github.fredgaffey.speechwarp.SpeechwarpStream
 
 SpeechwarpStream(sampleRate = 44100, channels = 2).use { stream ->
     stream.speed = 3f

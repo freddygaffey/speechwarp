@@ -15,8 +15,8 @@
     <Authors>The speechwarp contributors</Authors>
     <Description>Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the Sonic library. Not an official Google product.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/freddygaffey/speechwarp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/freddygaffey/speechwarp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/fredgaffey/speechwarp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fredgaffey/speechwarp</RepositoryUrl>
     <PackageTags>speech;audio;time-stretch;speed;sonic;speedy;audiobook</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

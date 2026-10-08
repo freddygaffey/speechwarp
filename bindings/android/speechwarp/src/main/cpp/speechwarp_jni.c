@@ -1,4 +1,4 @@
-/* The JNI layer: the native methods of io.github.freddygaffey.speechwarp.SpeechwarpStream, SyllableCounter,
+/* The JNI layer: the native methods of io.github.fredgaffey.speechwarp.SpeechwarpStream, SyllableCounter,
  * ListenerTrainer and BlindTrials. The Android (Kotlin) and desktop (Java) libraries share this file, so the
  * native method names and signatures of both must stay the same.
  *
@@ -12,7 +12,7 @@
 #include "speechwarp.h"
 
 #define NATIVE(result, name) \
-  JNIEXPORT result JNICALL Java_io_github_freddygaffey_speechwarp_SpeechwarpStream_##name
+  JNIEXPORT result JNICALL Java_io_github_fredgaffey_speechwarp_SpeechwarpStream_##name
 
 static speechwarp_stream* stream_of(jlong handle) { return (speechwarp_stream*)(intptr_t)handle; }
 
@@ -192,7 +192,7 @@ NATIVE(jint, nativeReadShort)(JNIEnv* env, jclass type, jlong handle, jshortArra
 /* ---- SyllableCounter ---------------------------------------------------------------------------------- */
 
 #define COUNTER(result, name) \
-  JNIEXPORT result JNICALL Java_io_github_freddygaffey_speechwarp_SyllableCounter_##name
+  JNIEXPORT result JNICALL Java_io_github_fredgaffey_speechwarp_SyllableCounter_##name
 
 static speechwarp_syllables* counter_of(jlong handle) { return (speechwarp_syllables*)(intptr_t)handle; }
 
@@ -245,7 +245,7 @@ COUNTER(void, nativeReset)(JNIEnv* env, jclass type, jlong handle) {
 /* ---- ListenerTrainer ---------------------------------------------------------------------------------- */
 
 #define TRAINER(result, name) \
-  JNIEXPORT result JNICALL Java_io_github_freddygaffey_speechwarp_ListenerTrainer_##name
+  JNIEXPORT result JNICALL Java_io_github_fredgaffey_speechwarp_ListenerTrainer_##name
 
 static speechwarp_trainer* trainer_of(jlong handle) { return (speechwarp_trainer*)(intptr_t)handle; }
 
@@ -400,7 +400,7 @@ TRAINER(jdouble, nativeTrendSd)(JNIEnv* env, jclass type, jlong handle) {
 /* ---- BlindTrials -------------------------------------------------------------------------------------- */
 
 #define TRIALS(result, name) \
-  JNIEXPORT result JNICALL Java_io_github_freddygaffey_speechwarp_BlindTrials_##name
+  JNIEXPORT result JNICALL Java_io_github_fredgaffey_speechwarp_BlindTrials_##name
 
 static speechwarp_trials* trials_of(jlong handle) { return (speechwarp_trials*)(intptr_t)handle; }
 

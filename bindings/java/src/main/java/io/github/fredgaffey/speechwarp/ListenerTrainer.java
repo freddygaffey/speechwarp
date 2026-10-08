@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp;
+package io.github.fredgaffey.speechwarp;
 
 /**
  * Pure logic for training a listener to follow faster speech: no audio, no clock, no storage. The caller passes

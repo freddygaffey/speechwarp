@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp
+package io.github.fredgaffey.speechwarp
 
 /**
  * Speeds up speech. Write audio in, read the faster audio out.

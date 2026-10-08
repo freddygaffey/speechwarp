@@ -80,8 +80,8 @@ if(SPEECHWARP_BUILD_SHARED)
       FRAMEWORK TRUE
       PUBLIC_HEADER include/speechwarp.h
       MACOSX_FRAMEWORK_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/cmake/framework-Info.plist.in
-      MACOSX_FRAMEWORK_IDENTIFIER io.github.freddygaffey.speechwarp
-      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER io.github.freddygaffey.speechwarp
+      MACOSX_FRAMEWORK_IDENTIFIER io.github.fredgaffey.speechwarp
+      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER io.github.fredgaffey.speechwarp
       MACOSX_FRAMEWORK_SHORT_VERSION_STRING ${PROJECT_VERSION}
       MACOSX_FRAMEWORK_BUNDLE_VERSION ${PROJECT_VERSION})
   endif()

@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => min_ios_version_supported }
-  s.source       = { :git => "https://github.com/freddygaffey/speechwarp.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/fredgaffey/speechwarp.git", :tag => "#{s.version}" }
 
   # cpp/speechwarp holds the C library's sources, copied in by scripts/vendor.sh. Only its src/ is compiled:
   # those files include the ones in third_party/ themselves.

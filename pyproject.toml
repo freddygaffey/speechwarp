@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/freddygaffey/speechwarp"
+Homepage = "https://github.com/fredgaffey/speechwarp"
 
 [project.optional-dependencies]
 test = ["pytest"]

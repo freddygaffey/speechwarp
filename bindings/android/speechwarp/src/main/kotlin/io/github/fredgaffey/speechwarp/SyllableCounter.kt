@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp
+package io.github.fredgaffey.speechwarp
 
 /**
  * The syllable-rate estimator behind [SpeechwarpStream.syllableRate], on its own, for audio that does not go

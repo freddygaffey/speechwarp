@@ -51,15 +51,15 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/freddygaffey/speechwarp.git",
+    "url": "git+https://github.com/fredgaffey/speechwarp.git",
     "directory": "bindings/react-native"
   },
-  "author": "The speechwarp contributors <noreply@github.com> (https://github.com/freddygaffey)",
+  "author": "The speechwarp contributors <noreply@github.com> (https://github.com/fredgaffey)",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/freddygaffey/speechwarp/issues"
+    "url": "https://github.com/fredgaffey/speechwarp/issues"
   },
-  "homepage": "https://github.com/freddygaffey/speechwarp#readme",
+  "homepage": "https://github.com/fredgaffey/speechwarp#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -112,7 +112,7 @@
       "android": "android/generated"
     },
     "android": {
-      "javaPackageName": "io.github.freddygaffey.speechwarp"
+      "javaPackageName": "io.github.fredgaffey.speechwarp"
     },
     "includesGeneratedCode": true
   },

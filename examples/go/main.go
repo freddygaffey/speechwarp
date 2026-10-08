@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	speechwarp "github.com/freddygaffey/speechwarp/bindings/go"
+	speechwarp "github.com/fredgaffey/speechwarp/bindings/go"
 )
 
 func main() {

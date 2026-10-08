@@ -1,4 +1,4 @@
-package io.github.freddygaffey.speechwarp_example
+package io.github.fredgaffey.speechwarp_example
 
 import io.flutter.embedding.android.FlutterActivity
 

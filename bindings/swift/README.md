@@ -1,10 +1,10 @@
 # Speechwarp for Swift
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the Swift binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 
-Add the package by its repository URL, `https://github.com/freddygaffey/speechwarp`, and depend on the
+Add the package by its repository URL, `https://github.com/fredgaffey/speechwarp`, and depend on the
 `Speechwarp` product. `Package.swift` is at the top of the repository; the C sources are compiled as part of
 the package, so there is nothing else to install.
 

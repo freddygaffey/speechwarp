@@ -1,7 +1,7 @@
 # speechwarp for Python
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the Python binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 
 ```python

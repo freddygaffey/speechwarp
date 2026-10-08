@@ -1,12 +1,12 @@
 # speechwarp for Java
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the desktop Java binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 For Android, use the [Android library](../android/) instead; it has the same class.
 
 ```java
-import io.github.freddygaffey.speechwarp.SpeechwarpStream;
+import io.github.fredgaffey.speechwarp.SpeechwarpStream;
 
 try (SpeechwarpStream stream = new SpeechwarpStream(44100, 2)) {   // sample rate, channels
     stream.setSpeed(3);

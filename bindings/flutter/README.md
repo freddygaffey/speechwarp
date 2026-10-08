@@ -1,7 +1,7 @@
 # speechwarp for Flutter
 
 Nonlinear speed-up for speech: listen faster and still follow it. This is the Flutter and Dart binding of
-[speechwarp](https://github.com/freddygaffey/speechwarp), which packages Google's Speedy algorithm and the
+[speechwarp](https://github.com/fredgaffey/speechwarp), which packages Google's Speedy algorithm and the
 Sonic library. It is not an official Google product.
 
 ```dart
@@ -29,7 +29,7 @@ the folder:
 dependencies:
   speechwarp:
     git:
-      url: https://github.com/freddygaffey/speechwarp
+      url: https://github.com/fredgaffey/speechwarp
       path: bindings/flutter
 ```
 

@@ -10,11 +10,11 @@ plugins {
 val header = rootDir.resolve("../../include/speechwarp.h").readText()
 val libraryVersion = Regex("#define SPEECHWARP_VERSION \"(.*)\"").find(header)!!.groupValues[1]
 
-group = "io.github.freddygaffey"
+group = "io.github.fredgaffey"
 version = libraryVersion
 
 android {
-    namespace = "io.github.freddygaffey.speechwarp"
+    namespace = "io.github.fredgaffey.speechwarp"
     compileSdk = 36
     ndkVersion = "27.1.12297006"
 
@@ -88,7 +88,7 @@ publishing {
             pom {
                 name.set("speechwarp")
                 description.set("Nonlinear speed-up for speech: listen faster and still follow it")
-                url.set("https://github.com/freddygaffey/speechwarp")
+                url.set("https://github.com/fredgaffey/speechwarp")
                 licenses {
                     license {
                         name.set("Apache-2.0")
