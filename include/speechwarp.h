@@ -163,8 +163,9 @@ SPEECHWARP_API double speechwarp_syllable_rate(const speechwarp_stream* stream);
  * (docs/how-it-works.md). A listener needs a pause of roughly the same length
  * in their own time at any speed to hear the break. */
 
-/* Heard pause: keep each pause about `seconds` long in the output. The getters return the values last set,
- * also while the rule is off; a NaN in any argument ignores the call. The pause cap in force is `seconds` times
+/* Heard pause: keep each pause about `seconds` long in the output. The getters return the values last set;
+ * speechwarp_set_pause_cap turns the rule off and makes speechwarp_get_heard_pause 0. A NaN in any argument
+ * ignores the call. The pause cap in force is `seconds` times
  * the current speed, clamped to 0.03 to 0.4 s of input. Below `from_speed` pauses are left alone (pause cap 0).
  * `seconds`: 0 turns the rule off (and the pause cap with it); otherwise 0.002 to 0.4. `from_speed`: 1 to 20.
  * Sensible values are 0.015 to 0.06 heard, from 3x. */
@@ -172,7 +173,8 @@ SPEECHWARP_API void speechwarp_set_heard_pause(speechwarp_stream* stream, float 
 SPEECHWARP_API float speechwarp_get_heard_pause(const speechwarp_stream* stream);
 SPEECHWARP_API float speechwarp_get_heard_pause_from(const speechwarp_stream* stream);
 
-/* Floor blend: the speed floor in force is 0 below `from_speed`, rises linearly to `fraction` at `full_speed`,
+/* Floor blend (speechwarp_set_speed_floor turns it off and makes speechwarp_get_floor_blend 0): the speed
+ * floor in force is 0 below `from_speed`, rises linearly to `fraction` at `full_speed`,
  * and stays at `fraction` above it, so that a speed ramp never changes the sound in a jump. `fraction`: 0 turns
  * the rule off (and the floor with it); otherwise up to 1. Speeds 1 to 20; if `full_speed` is not above
  * `from_speed` it is taken as equal, and the floor steps to `fraction` at `from_speed`. Sensible: 0.5 from 4x,

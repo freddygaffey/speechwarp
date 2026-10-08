@@ -64,7 +64,7 @@ static double rng_gamma(rng* r, double shape) {
   }
 }
 
-static int finite(double x) { return x == x && x - x == 0; }
+static int is_finite(double x) { return x == x && x - x == 0; }
 
 /* ---- The trainer ------------------------------------------------------------------------------------- */
 
@@ -185,7 +185,7 @@ void speechwarp_trainer_destroy(speechwarp_trainer* trainer) {
 }
 
 void speechwarp_trainer_set_weight(speechwarp_trainer* trainer, int kind, double weight) {
-  if (trainer && kind >= 0 && kind < 4 && weight >= 0 && finite(weight)) {
+  if (trainer && kind >= 0 && kind < 4 && weight >= 0 && is_finite(weight)) {
     trainer->weight[kind] = weight;
   }
 }
@@ -195,7 +195,7 @@ double speechwarp_trainer_get_weight(const speechwarp_trainer* trainer, int kind
 }
 
 void speechwarp_trainer_set_param(speechwarp_trainer* trainer, int param, double value) {
-  if (!trainer || param < 0 || param >= SPEECHWARP_PARAM_COUNT || !finite(value)) {
+  if (!trainer || param < 0 || param >= SPEECHWARP_PARAM_COUNT || !is_finite(value)) {
     return;
   }
   if (value < param_min[param]) value = param_min[param];
@@ -287,7 +287,7 @@ static void summarise(const speechwarp_trainer* t, double* median, double* low, 
 void speechwarp_trainer_test_begin(speechwarp_trainer* trainer, double prior_rate, double time) {
   double centre, sd;
   int i, j;
-  if (!trainer || !finite(prior_rate) || !finite(time)) {
+  if (!trainer || !is_finite(prior_rate) || !is_finite(time)) {
     return;
   }
   if (prior_rate > 0) {
@@ -399,7 +399,7 @@ int speechwarp_trainer_test_done(const speechwarp_trainer* trainer) {
 }
 
 double speechwarp_trainer_test_end(speechwarp_trainer* trainer, double time) {
-  if (!trainer || !trainer->testing || !finite(time)) {
+  if (!trainer || !trainer->testing || !is_finite(time)) {
     return 0;
   }
   summarise(trainer, &trainer->threshold, &trainer->threshold_low, &trainer->threshold_high);
@@ -461,8 +461,8 @@ int speechwarp_trainer_add_measure(speechwarp_trainer* trainer, int kind, double
   double weighted;
   if (!trainer || (kind != SPEECHWARP_MEASURE_INTELLIGIBILITY && kind != SPEECHWARP_MEASURE_VERIFICATION &&
                    kind != SPEECHWARP_MEASURE_RATING) ||
-      !(score >= 0 && score <= 1) || !(items > 0) || !finite(items) || !(rate > 0) || !finite(rate) ||
-      !finite(time)) {
+      !(score >= 0 && score <= 1) || !(items > 0) || !is_finite(items) || !(rate > 0) || !is_finite(rate) ||
+      !is_finite(time)) {
     return 0;
   }
   weighted = items * trainer->weight[kind];
@@ -484,7 +484,7 @@ int speechwarp_trainer_add_measure(speechwarp_trainer* trainer, int kind, double
 }
 
 void speechwarp_trainer_session_begin(speechwarp_trainer* trainer, int plan, double time) {
-  if (!trainer || plan < 0 || plan >= SPEECHWARP_PLAN_COUNT || !finite(time)) {
+  if (!trainer || plan < 0 || plan >= SPEECHWARP_PLAN_COUNT || !is_finite(time)) {
     return;
   }
   trainer->in_session = 1;
@@ -498,7 +498,7 @@ void speechwarp_trainer_session_begin(speechwarp_trainer* trainer, int plan, dou
 double speechwarp_trainer_session_rate(speechwarp_trainer* trainer, double time) {
   const double* p;
   double minutes, rate = 0;
-  if (!trainer || !trainer->in_session || !finite(time)) {
+  if (!trainer || !trainer->in_session || !is_finite(time)) {
     return 0;
   }
   p = trainer->param;
@@ -530,7 +530,7 @@ double speechwarp_trainer_session_rate(speechwarp_trainer* trainer, double time)
 
 int speechwarp_trainer_session_end(speechwarp_trainer* trainer, double listening_hours, double time) {
   session* s;
-  if (!trainer || !trainer->in_session || !finite(listening_hours) || !finite(time)) {
+  if (!trainer || !trainer->in_session || !is_finite(listening_hours) || !is_finite(time)) {
     return -1;
   }
   if (trainer->session_count == trainer->session_capacity) {
@@ -560,7 +560,7 @@ int speechwarp_trainer_add_retention(speechwarp_trainer* trainer, int session_nu
                                      double delay_seconds, double time) {
   retention* r;
   if (!trainer || session_number < 0 || session_number >= trainer->session_count || !(score >= 0 && score <= 1) ||
-      !(items > 0) || !finite(items) || !(delay_seconds >= 0) || !finite(delay_seconds) || !finite(time)) {
+      !(items > 0) || !is_finite(items) || !(delay_seconds >= 0) || !is_finite(delay_seconds) || !is_finite(time)) {
     return 0;
   }
   if (trainer->retention_count == trainer->retention_capacity) {
@@ -1004,7 +1004,7 @@ static int find_value(const setting* s, double value) {
 
 int speechwarp_trials_add_value(speechwarp_trials* trials, int setting_number, double value) {
   setting* s;
-  if (!valid_setting(trials, setting_number) || !finite(value)) return -1;
+  if (!valid_setting(trials, setting_number) || !is_finite(value)) return -1;
   s = &trials->settings[setting_number];
   if (s->value_count == MAX_VALUES || find_value(s, value) >= 0) return -1;
   s->values[s->value_count] = value;
@@ -1020,7 +1020,7 @@ int speechwarp_trials_add(speechwarp_trials* trials, int setting_number, double 
   const setting* s;
   trial* t;
   int first, second;
-  if (!valid_setting(trials, setting_number) || !(speed > 0) || !finite(speed) ||
+  if (!valid_setting(trials, setting_number) || !(speed > 0) || !is_finite(speed) ||
       !(first_score >= 0 && first_score <= 1) || !(second_score >= 0 && second_score <= 1) || preferred < -1 ||
       preferred > 1) {
     return 0;
@@ -1065,7 +1065,7 @@ int speechwarp_trials_next(speechwarp_trials* trials, double speed) {
   int band, chosen = -1, fewest = 0, ties = 0, k, i, j;
   const setting* s;
   int pair_a = -1, pair_b = -1, least = 0;
-  if (!trials || !(speed > 0) || !finite(speed)) return -1;
+  if (!trials || !(speed > 0) || !is_finite(speed)) return -1;
   band = band_of(speed);
   /* The setting with the fewest trials here; ties chosen at random, uniformly (reservoir sampling). */
   for (i = 0; i < trials->setting_count; i++) {
@@ -1206,7 +1206,7 @@ static double bayes_factor(double won, double lost) {
 int speechwarp_trials_winner(const speechwarp_trials* trials, int setting_number, double speed) {
   const setting* s;
   int band, v, w;
-  if (!valid_setting(trials, setting_number) || !(speed > 0) || !finite(speed)) return -1;
+  if (!valid_setting(trials, setting_number) || !(speed > 0) || !is_finite(speed)) return -1;
   s = &trials->settings[setting_number];
   band = band_of(speed);
   for (v = 0; v < s->value_count; v++) {
