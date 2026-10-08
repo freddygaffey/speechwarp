@@ -127,6 +127,38 @@ above the dips, be within 25 dB of the loudest recent speech, be voiced (under 3
 and be at least 60 ms after the last. It runs on all input whatever the options, and costs little. It was
 ported from the C# player this library was written for.
 
+### Rules that follow the speed
+
+A fixed pause cap and a fixed floor do different things at different speeds, and a player that ramps the
+speed up during a session would have to keep recomputing them. Two rules do that inside the library, applied
+whenever the speed changes:
+
+**Heard pause** (`speechwarp_set_heard_pause`, seconds of output, and a speed from which it applies). The pause
+cap in force is the heard length times the speed, clamped to 0.03 to 0.4 s of input; below the "from" speed
+pauses are left alone. The reason is that the pause cap is measured in input. A fixed cap is heard as roughly
+the cap divided by the speed, so it vanishes as the speed rises. Measured on a synthetic signal (0.7 s voiced
+bursts with 300 ms of silence between them, Speedy, keep overall speed on; median of 39 pauses):
+
+| Speed | No cap | Fixed cap 0.06 s | Heard pause 0.03 s (cap in force) |
+|-------|--------|------------------|-----------------------------------|
+| 2x | 116 ms | 36 ms | 36 ms (0.06 s) |
+| 3x | 72 ms | 20 ms | 28 ms (0.09 s) |
+| 5x | 40 ms | 12 ms | 23 ms (0.15 s) |
+| 7.5x | 24 ms | 8 ms | 21 ms (0.225 s) |
+
+From 2x to 7.5x, 3.75 times faster, the fixed cap's pause shrank 4.7 times, about the speed to the power 1.2:
+the cap over the speed, plus a few milliseconds of crossfade. (An earlier note said heard pauses shrink with
+the square of the speed; this measurement does not bear that out.) The heard-pause rule holds them at 21 to
+28 ms instead. Speedy itself hurries pauses by a roughly constant factor, 0.6 to 0.77 of the even
+compression, which is why the measured length runs a little under the cap divided by the speed.
+
+**Floor blend** (`speechwarp_set_floor_blend`, a fraction and two speeds). The floor in force is 0 below the
+first speed and rises linearly to the fraction at the second, so a ramp in 0.1x steps changes the sound in
+steps too small to hear rather than all at once at some speed.
+
+Each rule and its fixed option replace each other, and `speechwarp_get_pause_cap` and
+`speechwarp_get_speed_floor` report the value in force.
+
 ### A first evaluation
 
 Five macOS voices (Samantha, Daniel, Karen, Moira and Tessa) read the same 300-word passage at 160 words a

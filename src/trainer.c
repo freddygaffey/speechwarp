@@ -146,7 +146,7 @@ struct speechwarp_trainer {
 };
 
 static const double default_param[SPEECHWARP_PARAM_COUNT] = {0.75, 0.10, 0.8, 0.02, 2, 0.15, 10, 0.4, 0.2, 40, 1.25};
-static const double param_min[SPEECHWARP_PARAM_COUNT] = {0.5, 0, 0.3, 0.001, 0.1, 0, 0.5, 0, 0, TEST_MINIMUM, 1.01};
+static const double param_min[SPEECHWARP_PARAM_COUNT] = {0.5, -0.5, 0.3, 0.001, 0.1, 0, 0.5, 0, 0, TEST_MINIMUM, 1.01};
 static const double param_max[SPEECHWARP_PARAM_COUNT] = {0.95, 1, 1, 0.5, 60, 0.9, 120, 5, 100, 1000, 4};
 static const double guess[4] = {0, 0.5, 0.5, 0};
 

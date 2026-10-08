@@ -246,7 +246,8 @@ enum {
 /* Tunable numbers, with their defaults. Set with speechwarp_trainer_set_param. */
 enum {
   SPEECHWARP_PARAM_TARGET = 0,          /* share understood that defines the threshold: 0.75 (0.5 to 0.95) */
-  SPEECHWARP_PARAM_MARGIN = 1,          /* steady and ramp: aim this fraction above the threshold: 0.10 */
+  SPEECHWARP_PARAM_MARGIN = 1,          /* steady and ramp: aim this fraction above the threshold: 0.10;
+                                           -0.5 to 1, negative to train below it */
   SPEECHWARP_PARAM_RAMP_START = 2,      /* ramp: start at this fraction of the target rate: 0.8 */
   SPEECHWARP_PARAM_RAMP_STEP = 3,       /* ramp: step by this fraction of the target rate: 0.02 */
   SPEECHWARP_PARAM_RAMP_MINUTES = 4,    /* ramp: minutes between steps: 2 */
