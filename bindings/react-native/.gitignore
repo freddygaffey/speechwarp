@@ -87,6 +87,8 @@ nitrogen/
 
 # The C library, copied in by scripts/vendor.sh
 cpp/speechwarp/
+/LICENSE
+/NOTICE
 
 # Built and generated
 lib/

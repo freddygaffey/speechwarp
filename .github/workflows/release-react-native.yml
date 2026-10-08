@@ -1,0 +1,81 @@
+name: Release React Native
+
+# Vendors the C sources, builds the package, type-checks and tests it, and checks that the packed tarball holds
+# everything the Android and iOS builds compile. The packed package is left as an artifact. Nothing is
+# published from a pull request or from main.
+#
+# Pushing a version tag (git tag v0.3.0 && git push origin v0.3.0) also publishes that tested package to npm.
+# npm trusts this workflow directly ("trusted publishing"), so no token is stored here; the trust is set up on
+# npmjs.com for this repository, this file and the environment `npm`. It can only be set up once the package
+# exists, so the first release (0.3.0) is published by hand with `npm publish`. The tag also publishes the
+# other packages (python.yml, js.yml, release-rust.yml).
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: yarn install --immutable
+      # Copies the C sources into cpp/speechwarp/ and builds lib/.
+      - run: yarn prepare
+      - run: yarn typecheck
+      - run: yarn test
+      - run: npm pack --ignore-scripts
+      - name: Check the package holds what the native builds need
+        run: |
+          tar tzf react-native-speechwarp-*.tgz > contents.txt
+          for file in package/LICENSE package/NOTICE package/Speechwarp.podspec package/android/CMakeLists.txt \
+              package/cpp/SpeechwarpImpl.cpp package/cpp/speechwarp/include/speechwarp.h \
+              package/cpp/speechwarp/src/speechwarp.c package/cpp/speechwarp/src/third_party_sonic.c \
+              package/cpp/speechwarp/third_party/kissfft/kiss_fft.c package/cpp/speechwarp/third_party/sonic/LICENSE \
+              package/cpp/speechwarp/third_party/speedy/LICENSE package/cpp/speechwarp/third_party/kissfft/COPYING \
+              package/lib/module/index.js package/lib/typescript/src/index.d.ts; do
+            grep -qx "$file" contents.txt || { echo "Missing from the package: $file"; exit 1; }
+          done
+          ! grep -E 'node_modules|/example/|__tests__|/\.' contents.txt ||
+            { echo "Files that do not belong in the package"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: bindings/react-native/react-native-speechwarp-*.tgz
+
+  publish:
+    # Only for version tags, and only once the package has built and passed its tests.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # lets npm check that the upload comes from this workflow
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest # trusted publishing needs npm 11.5.1 or later
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+      - name: Check the tag matches the version being published
+        run: |
+          ls *.tgz
+          test -f "react-native-speechwarp-${GITHUB_REF_NAME#v}.tgz" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/react-native/package.json"; exit 1; }
+      # The tarball the build job tested, so nothing is rebuilt here. Provenance is added automatically.
+      - run: npm publish "react-native-speechwarp-${GITHUB_REF_NAME#v}.tgz" --access public
