@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.7
 
 - **Speech from text on Apple devices**: an optional module, `SpeechwarpVoice` in Swift and the
   `Speechwarp.Voice` package in C# (iOS 16+), reads text aloud with Apple's voices, Eloquence among them, and

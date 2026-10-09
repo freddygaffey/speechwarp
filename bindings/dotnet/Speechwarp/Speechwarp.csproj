@@ -11,7 +11,7 @@
 
     <PackageId>Speechwarp</PackageId>
     <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h; the tests check it. -->
-    <Version>0.3.6</Version>
+    <Version>0.3.7</Version>
     <Authors>The speechwarp contributors</Authors>
     <Description>Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the Sonic library. Not an official Google product.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

@@ -263,7 +263,7 @@ class SpeechwarpStream(val sampleRate: Int, val channels: Int = 1) : AutoCloseab
             System.loadLibrary("speechwarp_jni")
         }
 
-        /** The version of the native library, such as "0.3.6". */
+        /** The version of the native library, such as "0.3.7". */
         @JvmStatic
         val libraryVersion: String
             get() = nativeVersion()

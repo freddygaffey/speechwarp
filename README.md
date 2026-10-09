@@ -53,9 +53,9 @@ platforms it supports.
 | Dart / Flutter | [pub.dev](https://pub.dev/packages/speechwarp) | `flutter pub add speechwarp` |
 | React Native | [npm](https://www.npmjs.com/package/react-native-speechwarp) | `npm install react-native-speechwarp` |
 | Go | [pkg.go.dev](https://pkg.go.dev/github.com/fredgaffey/speechwarp/bindings/go) | `go get github.com/fredgaffey/speechwarp/bindings/go` |
-| Kotlin (Android) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp-android) | `implementation("io.github.fredgaffey:speechwarp-android:0.3.6")` |
-| Java (desktop) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp) | `implementation("io.github.fredgaffey:speechwarp:0.3.6")` |
-| Swift | Swift Package Manager | `.package(url: "https://github.com/fredgaffey/speechwarp", from: "0.3.6")`, product `Speechwarp` |
+| Kotlin (Android) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp-android) | `implementation("io.github.fredgaffey:speechwarp-android:0.3.7")` |
+| Java (desktop) | [Maven Central](https://central.sonatype.com/artifact/io.github.fredgaffey/speechwarp) | `implementation("io.github.fredgaffey:speechwarp:0.3.7")` |
+| Swift | Swift Package Manager | `.package(url: "https://github.com/fredgaffey/speechwarp", from: "0.3.7")`, product `Speechwarp` |
 | C | source | build with CMake, below |
 
 The Maven lines are for Gradle (`build.gradle.kts`); with Maven, use group `io.github.fredgaffey`, artifact

@@ -1,6 +1,6 @@
 {
   "name": "speechwarp",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Nonlinear speed-up for speech: listen faster and still follow it",
   "license": "Apache-2.0",
   "repository": {

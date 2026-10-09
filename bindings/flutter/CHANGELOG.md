@@ -1,3 +1,7 @@
+## 0.3.7
+
+No changes to the Flutter package; released with the rest of speechwarp 0.3.7.
+
 ## 0.3.6
 
 Web support. The same classes now work in Flutter web, on top of the library compiled to WebAssembly, which is

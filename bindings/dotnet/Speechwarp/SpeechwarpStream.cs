@@ -41,7 +41,7 @@ public sealed unsafe class SpeechwarpStream : IDisposable
         Channels = channels;
     }
 
-    /// <summary>The version of the native library, such as "0.3.6".</summary>
+    /// <summary>The version of the native library, such as "0.3.7".</summary>
     public static string NativeVersion => Marshal.PtrToStringUTF8((nint)Native.speechwarp_version())!;
 
     /// <summary>Samples per second.</summary>

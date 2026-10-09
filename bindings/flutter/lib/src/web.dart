@@ -396,7 +396,7 @@ class SpeechwarpStream {
   /// The fastest speed that can be set.
   static const double maxSpeed = 20;
 
-  /// The version of the C library, such as "0.3.6".
+  /// The version of the C library, such as "0.3.7".
   static String get libraryVersion {
     _ready; // throws unless the library is loaded
     return _version;

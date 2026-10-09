@@ -56,7 +56,7 @@ Add it from [pub.dev](https://pub.dev/packages/speechwarp):
 
 ```yaml
 dependencies:
-  speechwarp: ^0.3.6
+  speechwarp: ^0.3.7
 ```
 
 The package carries the C sources it compiles (and their licences), so nothing else is needed. To follow

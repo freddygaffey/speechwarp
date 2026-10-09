@@ -12,7 +12,7 @@
 
     <PackageId>Speechwarp.Voice</PackageId>
     <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h (tools/bump-version.sh does). -->
-    <Version>0.3.6</Version>
+    <Version>0.3.7</Version>
     <Authors>The speechwarp contributors</Authors>
     <Description>Text read aloud by Apple's voices (Eloquence and the rest) and sped up by speechwarp, rendered a little ahead of playback, for iOS. Not an official Apple or Google product.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

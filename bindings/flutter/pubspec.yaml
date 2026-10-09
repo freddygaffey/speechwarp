@@ -1,6 +1,6 @@
 name: speechwarp
 description: "Nonlinear speed-up for speech: listen faster and still follow it. Packages Google's Speedy algorithm and the Sonic library."
-version: 0.3.6 # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
+version: 0.3.7 # keep in step with SPEECHWARP_VERSION in include/speechwarp.h; a test checks it
 homepage: https://github.com/fredgaffey/speechwarp
 repository: https://github.com/fredgaffey/speechwarp
 
