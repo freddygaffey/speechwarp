@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+- **Word scoring** for the trainer: `speechwarp_score_words` aligns a listener's repeat-back of a sentence
+  with the sentence (word-level edit distance on normalised words) and returns the share right with words
+  right, missed, wrong and extra. In every binding (`WordScore.Of`, `score_words`, `scoreWords`,
+  `ScoreWords`); see docs/api.md.
+
+- **Speech to text with whisper.cpp**, packaged on its own: the NuGet package `Speechwarp.Listen`
+  (`WhisperTranscriber`, `WhisperModels`; Windows, Linux, macOS, Android, iOS), the Swift product
+  `SpeechwarpListen` (from a framework built locally, see bindings/swift/README.md) and the Python package
+  `speechwarp-listen`. The C# and Swift classes implement the engine-independent `ITranscriber` / `Transcriber`
+  interface; a session fed in chunks serves a whole book or a microphone. Published by
+  `.github/workflows/release-listen.yml`.
+
+- **Speech to text with Apple's recogniser**: `AppleTranscriber` in `SpeechwarpVoice` (Swift, iOS and macOS:
+  `SpeechAnalyzer` on iOS 26 and macOS 26, on-device `SFSpeechRecognizer` before) and in `Speechwarp.Voice`
+  (C#, iOS: `SFSpeechRecognizer`), through the same interface. `MicrophoneSource` in both feeds the
+  microphone to a session of either engine.
+
+- **Docs**: [Speech to text](docs/speech-to-text.md): the interface, both engines, downloading models, the
+  microphone, transcribing a whole book, and scoring a sentence said back for the trainer.
+
+- whisper.cpp is a git submodule (`third_party/whisper.cpp`, v1.9.5) that is fetched only when asked for. The
+  core packages leave it out even when it is checked out: the crate lists its third-party folders by name, the
+  Python licence files are named, and the Flutter and React Native vendor scripts drop it.
+
 ## 0.3.7
 
 - **Speech from text on Apple devices**: an optional module, `SpeechwarpVoice` in Swift and the

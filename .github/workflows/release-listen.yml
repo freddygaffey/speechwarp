@@ -1,0 +1,314 @@
+name: Listen
+
+# Speech to text with whisper.cpp (listen/), packaged on its own: the NuGet package Speechwarp.Listen, the Python
+# package speechwarp-listen and the Swift product SpeechwarpListen. Builds the library for every platform, runs each
+# binding's tests with the smallest model (ggml-tiny.en.bin, downloaded and cached) and leaves the packages as
+# artifacts.
+#
+# Pushing a version tag (git tag v0.3.8 && git push origin v0.3.8) also publishes Speechwarp.Listen to nuget.org and
+# speechwarp-listen to PyPI, once everything has passed, by trusted publishing as the other workflows do: nuget.org
+# and PyPI trust this file and the environments `nuget` and `pypi`. The repository variable NUGET_USER names the
+# nuget.org account. The Swift product has no registry: its framework is left as an artifact (see
+# bindings/swift/README.md).
+#
+# whisper.cpp is a submodule that a checkout does not fetch by default; every job that builds or tests fetches it.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # The model the tests use, from the catalogue in listen/src/catalogue.cpp.
+  MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+  MODEL_SHA256: 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f
+
+jobs:
+  native:
+    name: native ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64, os: ubuntu-latest }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: osx-arm64, os: macos-latest }
+          - { rid: osx-x64, os: macos-latest }
+          - { rid: android-arm64, os: ubuntu-latest }
+          - { rid: android-x64, os: ubuntu-latest }
+          - { rid: android-arm, os: ubuntu-latest }
+          # ggml needs clang for ARM on Windows (MSVC can only build it for the machine it runs on).
+          - { rid: win-x64, os: windows-latest, platform: x64, flags: "-DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_BMI2=ON" }
+          - { rid: win-arm64, os: windows-latest, platform: ARM64, flags: "-T ClangCL" }
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - name: Build
+        if: runner.os != 'Windows'
+        # ANDROID_NDK_LATEST_HOME is set on GitHub's Linux runners.
+        run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" bindings/dotnet/build-listen-native.sh ${{ matrix.rid }}
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cmake -S listen -B build -A ${{ matrix.platform }} ${{ matrix.flags }} -DGGML_NATIVE=OFF \
+            -DSPEECHWARP_LISTEN_BUILD_STATIC=OFF -DSPEECHWARP_LISTEN_BUILD_TESTS=OFF \
+            -DSPEECHWARP_LISTEN_BUILD_TOOLS=OFF -DSPEECHWARP_LISTEN_INSTALL=OFF
+          cmake --build build --config Release
+          mkdir -p bindings/dotnet/Speechwarp.Listen/runtimes/${{ matrix.rid }}/native
+          # Renamed so that it can never be taken for the managed Speechwarp.Listen.dll (see Native.cs).
+          cp build/Release/speechwarp_listen.dll \
+            bindings/dotnet/Speechwarp.Listen/runtimes/${{ matrix.rid }}/native/libspeechwarp_listen.dll
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-native-${{ matrix.rid }}
+          path: bindings/dotnet/Speechwarp.Listen/runtimes
+          if-no-files-found: error
+
+  apple:
+    # The iOS framework for the NuGet package, and the framework (iOS and macOS) for the Swift package, whose tests
+    # run here.
+    name: apple
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - name: Build the iOS framework for .NET
+        run: bindings/dotnet/build-listen-ios.sh
+      - name: Build the framework for Swift
+        run: bindings/swift/build-listen-xcframework.sh
+      - name: Get the test model
+        uses: actions/cache@v6
+        with:
+          path: .models
+          key: whisper-model-${{ env.MODEL_SHA256 }}
+      - name: Download the test model if it was not cached
+        shell: bash
+        run: |
+          mkdir -p .models
+          [ -f .models/ggml-tiny.en.bin ] || curl -fsSL -o .models/ggml-tiny.en.bin "$MODEL_URL"
+          if command -v sha256sum >/dev/null; then check=sha256sum; else check="shasum -a 256"; fi
+          echo "$MODEL_SHA256  .models/ggml-tiny.en.bin" | $check -c -
+      - name: Test the Swift package
+        run: SPEECHWARP_LISTEN_MODEL="$PWD/.models/ggml-tiny.en.bin" swift test --filter SpeechwarpListenTests
+      - name: Build the Swift package for iOS
+        run: xcodebuild -scheme SpeechwarpListen -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=NO -quiet
+      - name: Zip the Swift framework
+        # In the form a binary target with a URL takes, with the checksum it needs.
+        run: |
+          mkdir -p swift
+          ditto -c -k --keepParent bindings/swift/Frameworks/speechwarp_listen.xcframework swift/speechwarp_listen.xcframework.zip
+          swift package compute-checksum swift/speechwarp_listen.xcframework.zip | tee swift/speechwarp_listen.xcframework.zip.checksum
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-ios-framework
+          path: bindings/dotnet/Speechwarp.Listen/native
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-swift-framework
+          path: swift
+          if-no-files-found: error
+
+  dotnet-test:
+    name: .NET test ${{ matrix.os }}
+    needs: native
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp (for its speech sample)
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: listen-native-*
+          merge-multiple: true
+          path: bindings/dotnet/Speechwarp.Listen/runtimes
+      - name: Get the test model
+        uses: actions/cache@v6
+        with:
+          path: .models
+          key: whisper-model-${{ env.MODEL_SHA256 }}
+      - name: Download the test model if it was not cached
+        shell: bash
+        run: |
+          mkdir -p .models
+          [ -f .models/ggml-tiny.en.bin ] || curl -fsSL -o .models/ggml-tiny.en.bin "$MODEL_URL"
+          if command -v sha256sum >/dev/null; then check=sha256sum; else check="shasum -a 256"; fi
+          echo "$MODEL_SHA256  .models/ggml-tiny.en.bin" | $check -c -
+      - name: Test
+        shell: bash
+        working-directory: bindings/dotnet
+        run: SPEECHWARP_LISTEN_MODEL="$GITHUB_WORKSPACE/.models/ggml-tiny.en.bin" dotnet test --project Speechwarp.Listen.Tests
+
+  dotnet-pack:
+    needs: [dotnet-test, apple]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp (for its licence, which the package carries)
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: listen-native-*
+          merge-multiple: true
+          path: bindings/dotnet/Speechwarp.Listen/runtimes
+      - uses: actions/download-artifact@v8
+        with:
+          name: listen-ios-framework
+          path: bindings/dotnet/Speechwarp.Listen/native
+      - name: Pack
+        run: dotnet pack bindings/dotnet/Speechwarp.Listen -c Release -o package
+      - name: Check every platform is in the package
+        run: |
+          contents=$(unzip -l package/Speechwarp.Listen.*.nupkg)
+          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-arm64 osx-x64 android-arm64 android-x64 android-arm; do
+            echo "$contents" | grep -q "runtimes/$rid/native/" || { echo "missing $rid"; exit 1; }
+          done
+          echo "$contents" | grep -q "native/ios/speechwarp_listen.xcframework/ios-arm64/" || { echo "missing iOS"; exit 1; }
+          echo "$contents" | grep -q "licenses/whisper.cpp/LICENSE" || { echo "missing whisper.cpp licence"; exit 1; }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-nuget-package
+          path: package/*.nupkg
+
+  wheels:
+    name: wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    env:
+      SPEECHWARP_LISTEN_MODEL: ${{ github.workspace }}/.models/ggml-tiny.en.bin
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - name: Get the test model
+        uses: actions/cache@v6
+        with:
+          path: .models
+          key: whisper-model-${{ env.MODEL_SHA256 }}
+      - name: Download the test model if it was not cached
+        shell: bash
+        run: |
+          mkdir -p .models
+          [ -f .models/ggml-tiny.en.bin ] || curl -fsSL -o .models/ggml-tiny.en.bin "$MODEL_URL"
+          if command -v sha256sum >/dev/null; then check=sha256sum; else check="shasum -a 256"; fi
+          echo "$MODEL_SHA256  .models/ggml-tiny.en.bin" | $check -c -
+      - uses: pypa/cibuildwheel@v3.2.0
+        with:
+          package-dir: bindings/python-listen
+        env:
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          # On Linux the wheels are built and tested in a container, which sees the repository at /project.
+          CIBW_ENVIRONMENT_LINUX: SPEECHWARP_LISTEN_MODEL=/project/.models/ggml-tiny.en.bin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch whisper.cpp
+        run: git submodule update --init --checkout --depth 1 third_party/whisper.cpp
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Build
+        # The source distribution carries the sources from outside its folder that it needs.
+        run: |
+          python bindings/python-listen/vendor.py
+          pipx run build --sdist --outdir dist bindings/python-listen
+      - name: Get the test model
+        uses: actions/cache@v6
+        with:
+          path: .models
+          key: whisper-model-${{ env.MODEL_SHA256 }}
+      - name: Download the test model if it was not cached
+        run: |
+          mkdir -p .models
+          [ -f .models/ggml-tiny.en.bin ] || curl -fsSL -o .models/ggml-tiny.en.bin "$MODEL_URL"
+          if command -v sha256sum >/dev/null; then check=sha256sum; else check="shasum -a 256"; fi
+          echo "$MODEL_SHA256  .models/ggml-tiny.en.bin" | $check -c -
+      - name: Install and test the source distribution
+        run: |
+          pip install "$(ls dist/*.tar.gz)[test]"
+          cd "$RUNNER_TEMP" && SPEECHWARP_LISTEN_MODEL="$GITHUB_WORKSPACE/.models/ggml-tiny.en.bin" \
+            pytest "$GITHUB_WORKSPACE/bindings/python-listen/tests"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: listen-sdist
+          path: dist/*.tar.gz
+
+  publish-nuget:
+    # Only for version tags, and only once every native has built and the tests have passed everywhere.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: dotnet-pack
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      id-token: write # lets nuget.org check that the upload comes from this workflow
+    steps:
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v8
+        with:
+          name: listen-nuget-package
+      - name: Check the tag matches the version being published
+        run: |
+          ls ./*.nupkg
+          test -f "Speechwarp.Listen.${GITHUB_REF_NAME#v}.nupkg" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version of Speechwarp.Listen"; exit 1; }
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - run: |
+          dotnet nuget push "Speechwarp.Listen.${GITHUB_REF_NAME#v}.nupkg" --skip-duplicate \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
+
+  publish-pypi:
+    # Only for version tags, and only once every wheel and the sdist have built and passed their tests.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # lets PyPI check that the upload comes from this workflow
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: listen-wheels-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: listen-sdist
+          path: dist
+      - name: Check the tag matches the version being published
+        run: |
+          ls dist
+          test -f "dist/speechwarp_listen-${GITHUB_REF_NAME#v}.tar.gz" ||
+            { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/python-listen/pyproject.toml"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@release/v1

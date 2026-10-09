@@ -3,3 +3,5 @@ obj/
 Speechwarp/runtimes/
 Speechwarp/native/
 *.nupkg
+Speechwarp.Listen/runtimes/
+Speechwarp.Listen/native/

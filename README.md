@@ -79,12 +79,30 @@ let samples = book.read(maxFrames: 1024)          // on the audio thread; mono a
 let at = book.characterPosition                   // for highlighting
 ```
 
+## Speech to text
+
+Optional packages turn speech into text on the device, through one interface with two engines: Apple's
+recogniser (in `SpeechwarpVoice` and `Speechwarp.Voice`, nothing to download) and whisper.cpp (`SpeechwarpListen`
+for Swift, `Speechwarp.Listen` for .NET on Windows, Linux, macOS, Android and iOS, `speechwarp-listen` for
+Python; the app downloads a model, listed with its size and hash). The same calls serve a sentence said back for
+the listener trainer, a whole audiobook with word times, and a live microphone. `Speechwarp.Listen` and
+`speechwarp-listen` are published from the next release; until then build them from this repository. See
+[Speech to text](docs/speech-to-text.md).
+
+```csharp
+using var transcriber = new WhisperTranscriber(modelPath);          // or new AppleTranscriber(...)
+var transcript = await transcriber.TranscribeAsync(samples, 16000);
+var score = WordScore.Of(sentence, transcript.Text);                 // for the trainer: share of words right
+```
+
 ## Documentation
 
 Start with the [guide](docs/guide.md): frames, the write and read cycle, what the speed means. Then:
 
 - [Building a player](docs/player.md) - playing in real time, seeking, the progress bar, threads
 - [API reference](docs/api.md) - every function, in every language
+- [Speech to text](docs/speech-to-text.md) - transcribing a sentence, a book or the microphone, and scoring
+  a sentence said back
 - [How it works](docs/how-it-works.md) - what the algorithm does, and what this library adds to upstream
 - [Examples](examples/) - code that runs, in each language
 - [Contributing](CONTRIBUTING.md) - building and testing everything

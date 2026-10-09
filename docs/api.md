@@ -79,6 +79,20 @@ Trainer methods mirror the C functions one for one: `add_measure`, `test_begin`,
 NaN. Seeds are unsigned 64-bit in C, C#, Rust, Go, Swift and Dart, the same bits in a signed `long` in Kotlin
 and Java, and numbers up to 2^53 in React Native, whose module spec has no 64-bit integer.
 
+## Word scoring
+
+Scores a listener's repeat-back of a sentence (typed, or from speech-to-text) for the trainer: the two texts
+are split into normalised words (lower case, punctuation dropped, apostrophes inside words kept, ’ read as ',
+numbers left as digits) and aligned by word-level edit distance, ties going to more words right. Returns the
+share right (right / reference words) and four counts. The full rules are in `include/speechwarp.h`.
+
+| C | C# | Python | Swift | Kotlin / Java | JS | Dart | RN | Rust | Go |
+|---|---|---|---|---|---|---|---|---|---|
+| `speechwarp_score_words(ref, heard, counts)` → share; `counts` = right, missed, wrong, extra | `WordScore.Of(ref, heard)` → `WordScore(Share, Right, Missed, Wrong, Extra)` | `score_words(ref, heard)` → `WordScore` named tuple | `scoreWords(reference:heard:)` → `WordScore` | `WordScore.scoreWords(ref, heard)` | `speechwarp.scoreWords(ref, heard)` → `{share, right, missed, wrong, extra}` | `scoreWords(ref, heard)` → `WordScore` | `scoreWords(ref, heard)` | `score_words(ref, heard)` → `Result<WordScore, Error>` | `ScoreWords(ref, heard)` → `(WordScore, error)` |
+
+C#, Python, Swift, Kotlin, Java, JS and React Native put both texts in Unicode form NFC first; C, Dart, Rust
+and Go have no normaliser to hand, so give them text in one form (most text is NFC already).
+
 ## Speech from text (Apple only)
 
 | | Swift (`SpeechwarpVoice`) | C# (`Speechwarp.Voice`, iOS) |
@@ -97,6 +111,41 @@ and Java, and numbers up to 2^53 in React Native, whose module spec has no 64-bi
 
 The system delivers speech on the main thread, which must keep running; `read` never waits for rendering.
 Character positions are UTF-16 offsets. Audio is mono at `sampleRate` (22,050 Hz for Eloquence).
+
+## Speech to text with whisper.cpp (Listen)
+
+An optional module, `listen/` (C library `speechwarp_listen`, header `listen/include/speechwarp_listen.h`), packaged
+separately because it carries whisper.cpp and needs a model file. C# and Swift implement the engine-independent
+interface (`ITranscriber` / `Transcriber`); Python has the same calls in its own style.
+
+| | C# (`Speechwarp.Listen`) | Swift (`SpeechwarpListen`) | Python (`speechwarp-listen`) |
+|---|---|---|---|
+| Models | `WhisperModels.All`, `.Find(id)`, `.FileName(model)`, `.ForFile(path)` | `WhisperModels.all`, `.find(_:)`, `.fileName(_:)`, `.forFile(_:)` | `models()`, `find_model(id)`, `model_for_file(path)`; `Model.file_name` |
+| Transcriber | `new WhisperTranscriber(path, model?, threads, useGpu)` | `WhisperTranscriber(modelPath:model:threads:useGPU:)` | `Transcriber(path, model=None, threads=0, use_gpu=False)` |
+| Load | `PrepareAsync()`, `IsReady`, `IsMultilingual` | `prepare(progress:)`, `isReady`, `isMultilingual` | `prepare()`, `is_ready`, `is_multilingual` |
+| A passage | `TranscribeAsync(samples, rate, options, token)` | `transcribe(_:sampleRate:options:)` | `transcribe(samples, rate, language=, word_timestamps=, hints=, preset=, threads=, cancel=)` |
+| A session | `StartSession(rate, options)` → `ITranscriptionSession` | `startSession(sampleRate:options:)` → `WhisperSession` | `start_session(rate, ...)` → `Session` |
+| Feeding it | `Write`; a worker thread recognises and raises `SegmentsReady` | `write`; a worker thread recognises and calls `onSegmentsReady` | `write`; `process()` returns finished segments (call it from any thread) |
+| Results | `TakeSegments()`, `Partial`, `FinishAsync()` | `takeSegments()`, `partial`, `finish()`, `close()` | `take()`, `partial()`, `finish()`, `cancel()` |
+| Library | `NativeVersion`, `EngineVersion`, `SystemInfo`, `SetEngineLog` | `nativeVersion`, `engineVersion`, `systemInfo`, `setEngineLog` | `native_version()`, `engine_version()`, `system_info()`, `set_engine_log()` |
+
+Hints are joined with commas into whisper's prompt. Cancelling (a `CancellationToken`, a cancelled Swift task, a
+Python `CancelToken` or `Session.cancel()`) stops the work soon and loses no audio: a cancelled finish can be called
+again. Apple systems need iOS 16.4 or macOS 13.3 (whisper.cpp's use of Accelerate).
+
+## Speech to text: the shared interface, Apple's engine, the microphone
+
+The interface both engines implement is in the core packages (C# namespace `Speechwarp.Transcription`, Swift
+module `Speechwarp`); the guide is [Speech to text](speech-to-text.md).
+
+| | C# | Swift |
+|---|---|---|
+| Interface | `ITranscriber` (`Model`, `IsReady`, `PrepareAsync`, `TranscribeAsync`, `StartSession`), `ITranscriptionSession` (`Write`, `TakeSegments`, `Partial`, `SecondsWritten`, `SecondsRecognised`, `SegmentsReady`, `FinishAsync`) | `Transcriber` (`model`, `isReady`, `prepare`, `transcribe`, `startSession`), `TranscriptionSession` (`write`, `takeSegments`, `partial`, `secondsWritten`, `secondsRecognised`, `onSegmentsReady`, `finish`) |
+| Types | `TranscriptionModel`, `TranscriptionOptions`, `TranscriptionEngine`, `TranscriptionPreset`, `Transcript`, `TranscriptSegment`, `TranscriptWord` | the same names |
+| Apple's engine | `Speechwarp.Voice` (iOS): `new AppleTranscriber(model)`, `AppleTranscriber.Models`, `.ModelFor(language)`, `Language`; errors `AppleTranscriberException` with `AppleTranscriberError` | `SpeechwarpVoice` (iOS, macOS): `AppleTranscriber(model:recogniser:)`, `.models`, `.availableModels()`, `.model(language:)`, `recogniserInUse`, `locale`; errors `AppleTranscriberError` |
+| Microphone | `MicrophoneSource(sampleRate)`: `RequestPermissionAsync()`, `StartAsync(session)`, `StartAsync(handler)`, `Stop()`, `Level`, `IsRunning`, `ConfiguresAudioSession` | `MicrophoneSource(sampleRate:)`: `requestPermission()`, `start(feeding:)`, `start(_:)`, `stop()`, `level`, `isRunning`, `configuresAudioSession`; errors `MicrophoneSourceError` |
+
+`MicrophoneSource` feeds a session of either engine. Python has whisper.cpp only (`speechwarp-listen`, above).
 
 ## Behaviour common to all
 

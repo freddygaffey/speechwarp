@@ -19,7 +19,8 @@ autobenches = false
 include = [
     "/Cargo.toml", "/LICENSE", "/NOTICE",
     "/include/*.h", "/src/*.c", "/src/*.h",
-    "/third_party/**",
+    # By name: third_party/whisper.cpp (a submodule, for listen/ only) must stay out of the crate.
+    "/third_party/README.md", "/third_party/speedy/**", "/third_party/sonic/**", "/third_party/kissfft/**",
     "/bindings/rust/**",
     "/examples/rust/**",
 ]

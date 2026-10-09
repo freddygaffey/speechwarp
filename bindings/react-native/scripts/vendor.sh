@@ -16,6 +16,8 @@ mkdir -p "$out/include" "$out/src" "$out/licenses"
 cp "$root/include/speechwarp.h" "$out/include/"
 cp "$root"/src/*.c "$root"/src/*.h "$out/src/"
 cp -R "$root/third_party" "$out/third_party"
+# whisper.cpp is a submodule for listen/ only, not part of this library.
+rm -rf "$out/third_party/whisper.cpp"
 cp "$root/LICENSE" "$root/NOTICE" "$out/licenses/"
 # The package's own licence files, which npm and licence scanners look for at the top of the package.
 cp "$root/LICENSE" "$root/NOTICE" "$here/"

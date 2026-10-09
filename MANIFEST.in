@@ -3,5 +3,7 @@ include LICENSE NOTICE
 include include/*.h
 include src/*.c src/*.h
 recursive-include third_party *
+# whisper.cpp is only for the separate listen/ module.
+prune third_party/whisper.cpp
 include bindings/python/README.md
 recursive-include bindings/python/tests *.py

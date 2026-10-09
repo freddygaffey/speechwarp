@@ -10,7 +10,7 @@ dynamic = ["version"]
 description = "Nonlinear speed-up for speech: listen faster and still follow it"
 readme = "bindings/python/README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE", "third_party/*/LICENSE", "third_party/kissfft/COPYING", "third_party/kissfft/LICENSES/*"]
+license-files = ["LICENSE", "NOTICE", "third_party/speedy/LICENSE", "third_party/sonic/LICENSE", "third_party/kissfft/COPYING", "third_party/kissfft/LICENSES/*"]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.21"]
 keywords = ["speech", "audio", "time-stretch", "speed", "sonic", "speedy", "audiobook"]

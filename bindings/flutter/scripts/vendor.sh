@@ -23,6 +23,8 @@ cp "$root/include/speechwarp.h" "$out/include/"
 cp "$root"/src/*.c "$root"/src/*.h "$out/src/"
 # The upstream sources keep their own licences beside them.
 cp -R "$root/third_party" "$out/third_party"
+# whisper.cpp is a submodule for listen/ only, not part of this library.
+rm -rf "$out/third_party/whisper.cpp"
 # pub.dev wants LICENSE at the top of the package.
 cp "$root/LICENSE" "$root/NOTICE" "$here/"
 

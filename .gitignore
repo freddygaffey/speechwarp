@@ -14,3 +14,6 @@ wheelhouse/
 .swiftpm/
 /target/
 Cargo.lock
+
+# Built by bindings/swift/build-listen-xcframework.sh; never committed.
+/bindings/swift/Frameworks/

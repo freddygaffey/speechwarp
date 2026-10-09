@@ -1,6 +1,7 @@
 // swift-tools-version:5.7
 // The Swift package. It is at the top of the repository because that is where Swift Package Manager looks,
 // and because it compiles the C sources in src/ directly.
+import Foundation
 import PackageDescription
 
 let package = Package(
@@ -18,7 +19,7 @@ let package = Package(
             // Everything here that is not this target's. Without it Swift Package Manager takes the example
             // apps of the other bindings for resources of this one.
             exclude: [
-                "bindings", "examples", "tests", "tools", "docs", "cmake", "third_party",
+                "bindings", "examples", "tests", "tools", "docs", "cmake", "third_party", "listen",
                 "CMakeLists.txt", "Cargo.toml", "go.mod", "pyproject.toml", "setup.py", "MANIFEST.in",
                 "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "NOTICE",
                 "src/internal.h", "src/rename.h", "src/fft.h",
@@ -60,3 +61,29 @@ let package = Package(
         ),
     ]
 )
+
+// Optional: speech to text with whisper.cpp (SpeechwarpListen). whisper.cpp is a submodule that is not fetched by
+// default and needs CMake's per-architecture settings, so its library is a binary framework that
+// bindings/swift/build-listen-xcframework.sh builds. The product exists only once it has been built: a target whose
+// files are missing would break the whole package. Swift Package Manager caches this file's result, so run
+// `swift package purge-cache` after building or deleting the framework. See bindings/swift/README.md.
+let listenFramework = "bindings/swift/Frameworks/speechwarp_listen.xcframework"
+if FileManager.default.fileExists(atPath: Context.packageDirectory + "/" + listenFramework) {
+    package.products.append(.library(name: "SpeechwarpListen", targets: ["SpeechwarpListen"]))
+    package.targets += [
+        .binaryTarget(name: "speechwarp_listen", path: listenFramework),
+        .target(
+            name: "SpeechwarpListen",
+            dependencies: [
+                "Speechwarp",
+                .target(name: "speechwarp_listen", condition: .when(platforms: [.macOS, .iOS])),
+            ],
+            path: "bindings/swift/Sources/SpeechwarpListen"
+        ),
+        .testTarget(
+            name: "SpeechwarpListenTests",
+            dependencies: ["SpeechwarpListen"],
+            path: "bindings/swift/Tests/SpeechwarpListenTests"
+        ),
+    ]
+}

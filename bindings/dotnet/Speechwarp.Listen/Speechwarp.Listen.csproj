@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Speechwarp.Listen</PackageId>
+    <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h (tools/bump-version.sh does); the tests check it. -->
+    <Version>0.3.7</Version>
+    <Authors>The speechwarp contributors</Authors>
+    <Description>Speech to text on the device with whisper.cpp, through the engine-independent Speechwarp.Transcription interface: a sentence or a clip in one call, or a whole audiobook or a live microphone through a session, with segment and word times. Windows, Linux, macOS, Android and iOS. The app downloads the model (the package lists them with sizes and hashes). Not an official OpenAI product.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/fredgaffey/speechwarp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fredgaffey/speechwarp</RepositoryUrl>
+    <PackageTags>speech;speech-to-text;transcription;whisper;whisper.cpp;subtitles;audiobook;offline</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The shared interface (ITranscriber and the rest) is in the core package. -->
+    <ProjectReference Include="..\Speechwarp\Speechwarp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The native libraries, one folder per runtime, put here by build-listen-native.sh or by CI. -->
+    <None Include="runtimes\**" Pack="true" PackagePath="runtimes" />
+    <!-- iOS: a framework for devices and simulators, from build-listen-ios.sh, and the targets file that makes an
+         app embed it. -->
+    <None Include="native\**" Pack="true" PackagePath="native" />
+    <None Include="Speechwarp.Listen.targets" Pack="true" PackagePath="buildTransitive" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <!-- The licences of what the native library contains must travel with it. -->
+    <None Include="..\..\..\LICENSE;..\..\..\NOTICE" Pack="true" PackagePath="licenses" />
+    <None Include="..\..\..\third_party\whisper.cpp\LICENSE" Pack="true" PackagePath="licenses\whisper.cpp" />
+  </ItemGroup>
+
+</Project>
