@@ -79,6 +79,25 @@ Trainer methods mirror the C functions one for one: `add_measure`, `test_begin`,
 NaN. Seeds are unsigned 64-bit in C, C#, Rust, Go, Swift and Dart, the same bits in a signed `long` in Kotlin
 and Java, and numbers up to 2^53 in React Native, whose module spec has no 64-bit integer.
 
+## Speech from text (Apple only)
+
+| | Swift (`SpeechwarpVoice`) | C# (`Speechwarp.Voice`, iOS) |
+|---|---|---|
+| Voices | `SpeechVoice.all`, `.eloquence(language:)`, `SpeechVoice(identifier:)` | `SpeechVoice.All`, `.Eloquence(language)`, `.Find(id)` |
+| System rate | `SpeechRate.minimum`, `.normal`, `.maximum` | `SpeechRate.Minimum`, `.Normal`, `.Maximum` |
+| Text to audio | `SpeechRenderer(voice:).render(_:rate:)` (async) | `new SpeechRenderer(voice).RenderAsync(text, rate)` |
+| A whole text, live | `SpokenText(_:voice:voiceRate:)` | `new SpokenText(text, voice, voiceRate)` |
+| Read the audio | `read(maxFrames:)` | `Read(Span<float>)` |
+| Speed on top | `speed` | `Speed` |
+| Other stream options | `configure { stream in ... }` | `Configure(stream => ...)` |
+| Rendered ahead | `lookahead` (seconds, default 30) | `Lookahead` |
+| Where it is | `characterPosition`, `sentenceIndex` | `CharacterPosition`, `SentenceIndex` |
+| Jump | `seek(toCharacter:)` | `Seek(index)` |
+| State | `isBuffering`, `isFinished`, `lastError` | `IsBuffering`, `IsFinished`, `LastError` |
+
+The system delivers speech on the main thread, which must keep running; `read` never waits for rendering.
+Character positions are UTF-16 offsets. Audio is mono at `sampleRate` (22,050 Hz for Eloquence).
+
 ## Behaviour common to all
 
 **Create.** Sample rate 4000 to 384000, channels 1 to 32. Starts at speed 1 with nonlinear amount 1.

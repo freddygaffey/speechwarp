@@ -115,10 +115,28 @@ jobs:
           name: nuget-package
           path: package/*.nupkg
 
+  voice:
+    # Speechwarp.Voice: Apple's voices for iOS apps. Builds on macOS, where the iOS workload is available.
+    name: voice package
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Install the iOS workload
+        run: dotnet workload install ios
+      - name: Pack
+        run: dotnet pack bindings/dotnet/Speechwarp.Voice -c Release -o package
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-voice-package
+          path: package/Speechwarp.Voice.*.nupkg
+
   publish:
     # Only for version tags, and only once every native has built and the tests have passed everywhere.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: pack
+    needs: [pack, voice]
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
@@ -130,15 +148,22 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: nuget-package
+      - uses: actions/download-artifact@v8
+        with:
+          name: nuget-voice-package
       - name: Check the tag matches the version being published
         run: |
           ls *.nupkg
-          test -f "Speechwarp.${GITHUB_REF_NAME#v}.nupkg" ||
-            { echo "Tag $GITHUB_REF_NAME does not match the version in Speechwarp.csproj"; exit 1; }
+          for id in Speechwarp Speechwarp.Voice; do
+            test -f "$id.${GITHUB_REF_NAME#v}.nupkg" ||
+              { echo "Tag $GITHUB_REF_NAME does not match the version of $id"; exit 1; }
+          done
       - uses: NuGet/login@v1
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
-      - run: >
-          dotnet nuget push "Speechwarp.${GITHUB_REF_NAME#v}.nupkg"
-          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
+      - run: |
+          for id in Speechwarp Speechwarp.Voice; do
+            dotnet nuget push "$id.${GITHUB_REF_NAME#v}.nupkg" --skip-duplicate \
+              --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
+          done

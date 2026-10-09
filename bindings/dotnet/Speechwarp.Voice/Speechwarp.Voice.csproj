@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Apple's voices, Eloquence among them, exist only on Apple systems. -->
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>16.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Speechwarp.Voice</PackageId>
+    <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h (tools/bump-version.sh does). -->
+    <Version>0.3.6</Version>
+    <Authors>The speechwarp contributors</Authors>
+    <Description>Text read aloud by Apple's voices (Eloquence and the rest) and sped up by speechwarp, rendered a little ahead of playback, for iOS. Not an official Apple or Google product.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/fredgaffey/speechwarp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fredgaffey/speechwarp</RepositoryUrl>
+    <PackageTags>speech;tts;text-to-speech;eloquence;audiobook;ios;speed</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Speechwarp\Speechwarp.csproj" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\..\LICENSE;..\..\..\NOTICE" Pack="true" PackagePath="licenses" />
+  </ItemGroup>
+
+</Project>

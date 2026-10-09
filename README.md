@@ -62,6 +62,23 @@ The Maven lines are for Gradle (`build.gradle.kts`); with Maven, use group `io.g
 `speechwarp-android` or `speechwarp`. For Swift, add the package in Xcode under File, Add Package
 Dependencies, or in `Package.swift` as shown. Each binding's README has a first example.
 
+## Speech from text, on Apple devices
+
+An optional module reads text aloud with Apple's voices, Eloquence among them (the compact voice many fast
+screen-reader listeners use, included from iOS 16 and macOS 13), and speeds it up with speechwarp, so the same
+speeds and high-speed options work as for recordings. It renders sentence by sentence a little ahead of playback,
+in the background, and reports which character is being spoken. Swift: the `SpeechwarpVoice` product of the
+Swift package. C#: the `Speechwarp.Voice` package (`dotnet add package Speechwarp.Voice`, iOS 16 and later).
+
+```swift
+import SpeechwarpVoice
+let reed = SpeechVoice.eloquence(language: "en-US").first { $0.name == "Reed" }!
+let book = try SpokenText(text, voice: reed, voiceRate: SpeechRate.maximum)   // about 4x by itself
+book.speed = 1.5                                                              // speechwarp on top
+let samples = book.read(maxFrames: 1024)          // on the audio thread; mono at book.sampleRate
+let at = book.characterPosition                   // for highlighting
+```
+
 ## Documentation
 
 Start with the [guide](docs/guide.md): frames, the write and read cycle, what the speed means. Then:

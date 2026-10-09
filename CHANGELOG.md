@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Speech from text on Apple devices**: an optional module, `SpeechwarpVoice` in Swift and the
+  `Speechwarp.Voice` package in C# (iOS 16+), reads text aloud with Apple's voices, Eloquence among them, and
+  speeds it up with speechwarp. It splits the text into sentences, renders a set number of seconds ahead of
+  playback in the background with a cache, reports the character being spoken and seeks by character. The
+  core library is unchanged.
+
 ## 0.3.6
 
 - **Flutter on the web.** The Flutter package now supports Flutter web, with the same classes, over the library

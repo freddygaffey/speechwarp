@@ -8,6 +8,8 @@ let package = Package(
     platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .watchOS(.v6)],
     products: [
         .library(name: "Speechwarp", targets: ["Speechwarp"]),
+        // Optional: text read aloud by Apple's voices (Eloquence and the rest), sped up by speechwarp.
+        .library(name: "SpeechwarpVoice", targets: ["SpeechwarpVoice"]),
     ],
     targets: [
         .target(
@@ -40,6 +42,16 @@ let package = Package(
             name: "Speechwarp",
             dependencies: ["CSpeechwarp"],
             path: "bindings/swift/Sources/Speechwarp"
+        ),
+        .target(
+            name: "SpeechwarpVoice",
+            dependencies: ["Speechwarp"],
+            path: "bindings/swift/Sources/SpeechwarpVoice"
+        ),
+        .testTarget(
+            name: "SpeechwarpVoiceTests",
+            dependencies: ["SpeechwarpVoice"],
+            path: "bindings/swift/Tests/SpeechwarpVoiceTests"
         ),
         .testTarget(
             name: "SpeechwarpTests",
