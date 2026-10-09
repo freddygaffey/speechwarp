@@ -243,7 +243,13 @@ public final class AppleTranscriber: Transcriber, @unchecked Sendable {
     /// `secondsWritten - secondsRecognised` to a few minutes, or memory grows with the backlog.
     public func startSession(sampleRate: Int, options: TranscriptionOptions) throws -> TranscriptionSession {
         precondition(sampleRate > 0, "sampleRate must be positive")
-        let (isReady, chosen, module, analyzerLocale) = lock.synchronized { (ready, chosen, analyzerModule, analyzerLocale) }
+        // Read one at a time with explicit types: a single tuple here crashed the Swift 6.1 type checker.
+        lock.lock()
+        let isReady: Bool = ready
+        let chosen: Recogniser? = self.chosen
+        let module: AnalyzerModule = analyzerModule
+        let analyzerLocale: Locale = self.analyzerLocale
+        lock.unlock()
         guard isReady else { throw AppleTranscriberError.notPrepared }
         if chosen == .speechAnalyzer, #available(macOS 26, iOS 26, *) {
             return AnalyzerSession(module: module, locale: analyzerLocale, sampleRate: sampleRate, options: options)
