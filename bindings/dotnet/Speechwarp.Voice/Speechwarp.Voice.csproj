@@ -14,11 +14,11 @@
     <!-- Keep in step with SPEECHWARP_VERSION in include/speechwarp.h (tools/bump-version.sh does). -->
     <Version>0.3.7</Version>
     <Authors>The speechwarp contributors</Authors>
-    <Description>Text read aloud by Apple's voices (Eloquence and the rest) and sped up by speechwarp, rendered a little ahead of playback, for iOS. Not an official Apple or Google product.</Description>
+    <Description>Text read aloud by Apple's voices (Eloquence and the rest) and sped up by speechwarp, rendered a little ahead of playback, and speech recognised on the device by Apple's recogniser through the Speechwarp.Transcription interface, with a microphone source, for iOS. Not an official Apple or Google product.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fredgaffey/speechwarp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fredgaffey/speechwarp</RepositoryUrl>
-    <PackageTags>speech;tts;text-to-speech;eloquence;audiobook;ios;speed</PackageTags>
+    <PackageTags>speech;tts;text-to-speech;speech-to-text;transcription;eloquence;audiobook;ios;speed</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

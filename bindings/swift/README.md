@@ -48,6 +48,87 @@ stream.rhythmRate = 6    // ...six times a second
 `syllableRate` is an estimate of the syllables a second in the input, over the last minute; multiply it by the
 speed for the rate heard. It is `nil` until 10 s have been written.
 
+## Speech to text with Apple's recogniser
+
+The `SpeechwarpVoice` product also has `AppleTranscriber`, Apple's on-device speech recogniser behind the
+engine-independent `Transcriber` protocol of the `Speechwarp` product (the same calls work with any engine).
+On iOS 26 and macOS 26 it uses `SpeechAnalyzer` (`SpeechTranscriber`, or `DictationTranscriber` where the device
+lacks it), and `prepare` downloads the language's model if the system has not got it; on earlier systems it
+uses `SFSpeechRecognizer` with on-device recognition required, given long input in requests of 20 to 50 s cut
+in pauses. Nothing leaves the device.
+
+```swift
+import Speechwarp
+import SpeechwarpVoice
+
+let transcriber = try AppleTranscriber(model: AppleTranscriber.model(language: "en-GB"))
+try await transcriber.prepare { fraction in print(fraction) }   // asks permission, installs the model
+
+// A passage given at once: a sentence said back, a clip.
+let transcript = try await transcriber.transcribe(samples, sampleRate: 16000, options: .init())
+
+// Anything long or live: a session fed in pieces. Segments and words carry times from the session's start.
+let session = try transcriber.startSession(sampleRate: 16000, options: .init())
+session.write(chunk)                   // as often as you like; never waits
+let done = session.takeSegments()      // finished since the last call; session.partial is the live guess
+let rest = try await session.finish()
+
+// The microphone, into a session of any engine.
+let microphone = MicrophoneSource(sampleRate: 16000)
+try await microphone.start(feeding: session)   // microphone.level for a meter
+microphone.stop()
+```
+
+`AppleTranscriber.models` lists a model per language the device recognises on the device (`availableModels()`
+adds the newer recogniser's languages); every one has the id `apple-<language>`, size 0 and no download URL,
+because the system manages them.
+
+An iOS app needs two keys in its Info.plist, or the system ends the app when asked for permission (the library
+checks first and throws `missingUsageDescription` instead):
+
+- `NSSpeechRecognitionUsageDescription`, for `AppleTranscriber`;
+- `NSMicrophoneUsageDescription`, for `MicrophoneSource`.
+
+A macOS app needs them too (and, if sandboxed, the Audio Input entitlement for the microphone); a command-line tool or test runner is not asked, and macOS lets it recognise on the
+device without permission.
+
+## Speech to text with whisper.cpp
+
+The optional `SpeechwarpListen` product has `WhisperTranscriber`, whisper.cpp behind the same `Transcriber`
+protocol, on iOS 16.4 and macOS 13.3 or later, with the GPU through Metal if asked (`useGPU: true`; not in the
+simulator). `WhisperModels.all` lists the models an app can download, with sizes and SHA-256 hashes; the app
+downloads one and passes its path.
+
+```swift
+import Speechwarp
+import SpeechwarpListen
+
+let transcriber = try WhisperTranscriber(modelPath: path)       // e.g. ggml-base.en.bin
+try await transcriber.prepare(progress: nil)                     // loads the model
+let transcript = try await transcriber.transcribe(samples, sampleRate: 44100, options: .init(language: "en"))
+let session = try transcriber.startSession(sampleRate: 44100, options: .init())   // then as above
+```
+
+A session recognises chunks of 20 to 30 s, cut at the quietest moment, on a thread of its own; `onSegmentsReady`
+is called as each is done, and `partial` is worked out only while it is read. Call `close()` on a
+`WhisperSession` you abandon before `finish`.
+
+Swift Package Manager does not build whisper.cpp (a submodule not fetched by default, built with CMake), so the
+product appears only once its framework has been built into `bindings/swift/Frameworks`:
+
+```sh
+git submodule update --init --checkout third_party/whisper.cpp
+bindings/swift/build-listen-xcframework.sh
+SPEECHWARP_LISTEN_MODEL=/path/to/ggml-tiny.en.bin swift test --filter SpeechwarpListenTests
+```
+
+Swift Package Manager caches what Package.swift says, so after building the framework for the first time, or
+deleting it, run `swift package purge-cache` once; otherwise it carries on as before (without the product, or
+failing with "does not contain a binary artifact").
+
+An app depending on this package from Git does not get the product yet. The Listen workflow builds the framework
+as a zip with its checksum, ready for a binary target with a URL once it is attached to a release.
+
 ## Testing it here
 
 ```sh
