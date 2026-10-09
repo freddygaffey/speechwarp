@@ -187,6 +187,8 @@ extension type _Exports._(JSObject _) implements JSObject {
   external int trialsWinner(int trials, int setting, double speed);
   @JS('speechwarp_trials_set_confidence')
   external void trialsSetConfidence(int trials, double confidence);
+  @JS('speechwarp_score_words')
+  external double scoreWords(int reference, int heard, int counts);
 }
 
 /// A `WebAssembly.Memory`. Its buffer is replaced whenever the memory grows.
@@ -215,7 +217,15 @@ extension type _Shorts._(JSObject _) implements JSObject {
 @JS('Uint8Array')
 extension type _Bytes._(JSObject _) implements JSObject {
   external _Bytes(JSArrayBuffer buffer, int byteOffset, int length);
+  @JS('set')
+  external void setAll(JSUint8Array source);
   external JSUint8Array slice(int start, int end);
+}
+
+@JS('Int32Array')
+extension type _Ints._(JSObject _) implements JSObject {
+  external _Ints(JSArrayBuffer buffer, int byteOffset, int length);
+  external JSInt32Array slice(int start, int end);
 }
 
 @JS('WebAssembly.compile')
@@ -892,5 +902,39 @@ class BlindTrials {
   int _open() {
     if (_handle.isClosed) throw StateError('the trials are closed');
     return _handle.pointer;
+  }
+}
+
+/// Scores [heard] (what the listener said or typed) against [reference] (the sentence played).
+///
+/// Both are split into words the same way: letters folded to lower case (ASCII and the Latin letters),
+/// punctuation dropped, an apostrophe inside a word kept (' and U+2019 alike, so "Don't" matches "don’t"), and
+/// numbers left as digits ("3" and "three" differ). The two are aligned by word-level edit distance; among the
+/// cheapest alignments the one with the most words right is taken. The rules in full are at
+/// speechwarp_score_words in include/speechwarp.h. Dart has no Unicode normaliser built in, so give both in the
+/// same form (NFC, as most text already is): a decomposed "e" plus accent does not match "é".
+///
+/// Throws [OutOfMemoryError] if the library could not allocate its working space.
+WordScore scoreWords(String reference, String heard) {
+  final exports = _ready;
+  final referenceBytes = utf8.encode(reference);
+  final heardBytes = utf8.encode(heard);
+  final size = referenceBytes.length + heardBytes.length + 2;
+  final pointer = exports.malloc(size + 16);
+  if (pointer == 0) throw const OutOfMemoryError();
+  try {
+    final heardAt = pointer + referenceBytes.length + 1;
+    final countsAt = (pointer + size + 3) & ~3;
+    final text = Uint8List(size)
+      ..setAll(0, referenceBytes)
+      ..setAll(referenceBytes.length + 1, heardBytes);
+    final buffer = _Memory._(exports.memory).buffer;
+    _Bytes(buffer, pointer, size).setAll(text.toJS);
+    final share = exports.scoreWords(pointer, heardAt, countsAt);
+    if (share < 0) throw const OutOfMemoryError();
+    final counts = _Ints(_Memory._(exports.memory).buffer, countsAt, 4).slice(0, 4).toDart;
+    return WordScore(share, counts[0], counts[1], counts[2], counts[3]);
+  } finally {
+    exports.free(pointer);
   }
 }

@@ -1,6 +1,6 @@
 use speechwarp::{
-    BlindTrials, Error, ListenerTrainer, Stream, SyllableCounter, TrainerMeasure, TrainerParam, TrainerPlan, MAX_SPEED,
-    MIN_SPEED,
+    score_words, BlindTrials, Error, ListenerTrainer, Stream, SyllableCounter, TrainerMeasure, TrainerParam, TrainerPlan, MAX_SPEED,
+    MIN_SPEED, WordScore,
 };
 
 const RATE: u32 = 22050;
@@ -344,4 +344,19 @@ fn blind_trials_name_a_winner() {
         trials.add(setting, 6.0, 1.0, 2.0, 0.5, 0.9, 1);
     }
     assert_eq!(trials.winner(setting, 6.0), Some(1));
+}
+
+#[test]
+fn score_words_aligns_the_words_heard_with_the_sentence() {
+    let score = |reference: &str, heard: &str| score_words(reference, heard).unwrap();
+    let five = |share, right, missed, wrong, extra| WordScore { share, right, missed, wrong, extra };
+    assert_eq!(score("The cat sat on the mat.", "\"the CAT, sat on the mat!\""), five(1.0, 6, 0, 0, 0));
+    assert_eq!(score("one two three four", "one too tree four five"), five(0.5, 2, 0, 2, 1));
+    assert_eq!(score("a b", "b a"), five(0.5, 1, 1, 0, 1));
+    assert_eq!(score("Don't stop", "don\u{2019}t stop").share, 1.0);
+    assert_eq!(score("Café au lait", "CAFÉ au lait").share, 1.0);
+    assert_eq!(score("", ""), five(1.0, 0, 0, 0, 0));
+    assert_eq!(score("", "hello"), five(0.0, 0, 0, 0, 1));
+    assert_eq!(score("hello world", ""), five(0.0, 0, 2, 0, 0));
+    assert_eq!(score("hello\0 world", "hello"), five(1.0, 1, 0, 0, 0));
 }

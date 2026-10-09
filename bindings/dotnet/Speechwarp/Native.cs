@@ -283,6 +283,9 @@ internal static unsafe partial class Native
 
     [LibraryImport(Library)]
     internal static partial void speechwarp_trials_set_confidence(TrialsHandle trials, double confidence);
+
+    [LibraryImport(Library, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial double speechwarp_score_words(string reference, string heard, int* counts);
 }
 
 /// <summary>Owns a native stream, so it is freed even if the wrapper is never disposed.</summary>

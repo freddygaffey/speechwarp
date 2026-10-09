@@ -425,6 +425,74 @@ static void test_trials_winner(void) {
   }
 }
 
+/* Scores a pair and checks the share and the four counts. */
+static void check_score(const char* reference, const char* heard, double share, int right, int missed, int wrong,
+                        int extra) {
+  int counts[4] = {-9, -9, -9, -9};
+  double got = speechwarp_score_words(reference, heard, counts);
+  if (fabs(got - share) > 1e-12 || counts[0] != right || counts[1] != missed || counts[2] != wrong ||
+      counts[3] != extra) {
+    printf("score_words(\"%s\", \"%s\") = %g [%d %d %d %d], wanted %g [%d %d %d %d]\n", reference, heard, got,
+           counts[0], counts[1], counts[2], counts[3], share, right, missed, wrong, extra);
+  }
+  CHECK(fabs(got - share) <= 1e-12);
+  CHECK(counts[0] == right && counts[1] == missed && counts[2] == wrong && counts[3] == extra);
+}
+
+static void test_score_words(void) {
+  /* Exact, punctuation, case. */
+  check_score("The cat sat on the mat", "the cat sat on the mat", 1, 6, 0, 0, 0);
+  check_score("The cat sat on the mat.", "\"The cat, sat on - the MAT!\"", 1, 6, 0, 0, 0);
+  check_score("HELLO there", "hello THERE", 1, 2, 0, 0, 0);
+  /* Contractions, either apostrophe; apostrophes at word edges separate. */
+  check_score("Don't stop", "don\xe2\x80\x99t stop", 1, 2, 0, 0, 0);
+  check_score("don't", "dont", 0, 0, 0, 1, 0);
+  check_score("the dogs' toys", "'the dogs toys'", 1, 3, 0, 0, 0);
+  check_score("I can't", "I can t", 0.5, 1, 0, 1, 1);
+  /* Insertions, deletions, substitutions. */
+  check_score("the cat sat", "the big cat sat down", 1, 3, 0, 0, 2);
+  check_score("the cat sat on the mat", "the cat on mat", 4.0 / 6, 4, 2, 0, 0);
+  check_score("the cat sat", "the dog sat", 2.0 / 3, 2, 0, 1, 0);
+  check_score("one two three four", "one too tree four five", 0.5, 2, 0, 2, 1);
+  /* Ties go to right: a swapped pair is one right, one missed, one extra, not two wrong. */
+  check_score("a b", "b a", 0.5, 1, 1, 0, 1);
+  /* Empty. */
+  check_score("", "", 1, 0, 0, 0, 0);
+  check_score("  ...  ", "", 1, 0, 0, 0, 0);
+  check_score("", "something", 0, 0, 0, 0, 1);
+  check_score("hello world", "", 0, 0, 2, 0, 0);
+  check_score("hello world", "?!", 0, 0, 2, 0, 0);
+  CHECK(speechwarp_score_words(NULL, NULL, NULL) == 1);
+  CHECK(speechwarp_score_words("a b", NULL, NULL) == 0);
+  /* Numbers stay digits; commas join, full stops stay, between digits. */
+  check_score("I have 3 cats", "I have three cats", 0.75, 3, 0, 1, 0);
+  check_score("it cost 1,000 pounds", "It cost 1000 pounds.", 1, 4, 0, 0, 0);
+  check_score("pi is 3.14", "pi is 3.14.", 1, 3, 0, 0, 0);
+  check_score("pi is 3.14", "pi is 3 14", 2.0 / 3, 2, 0, 1, 1);
+  /* UTF-8: accented letters are word content and fold to lower case; Unicode quotes and dashes separate. */
+  check_score("caf\xc3\xa9 au lait", "CAF\xc3\x89 au lait", 1, 3, 0, 0, 0);
+  check_score("caf\xc3\xa9", "cafe", 0, 0, 0, 1, 0);
+  check_score("\xc5\x81\xc3\xb3" "d\xc5\xba", "\xc5\x82\xc3\x93" "D\xc5\xb9", 1, 1, 0, 0, 0); /* Łódź */
+  check_score("STRA\xe1\xba\x9e" "E", "stra\xc3\x9f" "e", 1, 1, 0, 0, 0);                 /* capital sharp s */
+  check_score("\xe2\x80\x9cWell\xe2\x80\x94yes\xe2\x80\xa6\xe2\x80\x9d", "well yes", 1, 2, 0, 0, 0);
+  check_score("\xd0\xbc\xd0\xb8\xd1\x80 \xe4\xb8\x96\xe7\x95\x8c", "\xd0\xbc\xd0\xb8\xd1\x80 \xe4\xb8\x96\xe7\x95\x8c", 1,
+              2, 0, 0, 0);
+  /* Malformed UTF-8 does not crash and compares byte for byte. */
+  check_score("a\xff" "b c", "a\xff" "b c", 1, 2, 0, 0, 0);
+  check_score("\xe2\x80", "\xe2\x80", 1, 1, 0, 0, 0);
+  /* A longer passage: counts add up. */
+  {
+    int counts[4];
+    const char* reference = "It was the best of times, it was the worst of times, it was the age of wisdom.";
+    const char* heard = "it was the best of time it was worst of times it was an age of wisdom yes";
+    double share = speechwarp_score_words(reference, heard, counts);
+    CHECK(counts[0] + counts[1] + counts[2] == 18);
+    CHECK(counts[0] + counts[2] + counts[3] == 18);
+    CHECK(fabs(share - counts[0] / 18.0) < 1e-12);
+    CHECK(counts[0] == 15 && counts[1] == 1 && counts[2] == 2 && counts[3] == 1);
+  }
+}
+
 int main(void) {
   test_trainer_arguments();
   test_determinism();
@@ -433,6 +501,7 @@ int main(void) {
   test_plan_comparison();
   test_trials_design();
   test_trials_winner();
+  test_score_words();
   if (failures) {
     printf("%d check(s) failed\n", failures);
     return 1;

@@ -25,6 +25,41 @@ export function version(): string {
   return Native.version();
 }
 
+/**
+ * How well a listener repeated a sentence back, from `scoreWords`. `right + missed + wrong` is the reference's
+ * word count and `right + wrong + extra` the heard one's.
+ */
+export interface WordScore {
+  /**
+   * Words right as a share of the reference's words, 0 to 1. With no words in the reference it is 1 if nothing
+   * was heard either and 0 otherwise.
+   */
+  share: number;
+  /** Reference words heard as they are. */
+  right: number;
+  /** Reference words not heard at all. */
+  missed: number;
+  /** Reference words heard as another word. */
+  wrong: number;
+  /** Heard words that are not in the reference. */
+  extra: number;
+}
+
+/**
+ * Score `heard` (what the listener said or typed) against `reference` (the sentence played).
+ *
+ * Both are put in Unicode form NFC where the JavaScript engine can, then split into words the same way: letters
+ * folded to lower case (ASCII and the Latin letters), punctuation dropped, an apostrophe inside a word kept (' and
+ * \u2019 alike, so "Don't" matches "don\u2019t"), and numbers left as digits ("3" and "three" differ). The two are
+ * aligned by word-level edit distance; among the cheapest alignments the one with the most words right is taken.
+ * The rules in full are at speechwarp_score_words in include/speechwarp.h.
+ */
+export function scoreWords(reference: string, heard: string): WordScore {
+  const nfc = (text: string) => (typeof text.normalize === 'function' ? text.normalize('NFC') : text);
+  const [share, right, missed, wrong, extra] = Native.scoreWords(nfc(String(reference)), nfc(String(heard)));
+  return { share: share!, right: right!, missed: missed!, wrong: wrong!, extra: extra! };
+}
+
 /** Speeds up speech. Write audio in, read the faster audio out. */
 function number(name: string, value: number): number {
   if (Number.isNaN(value)) {

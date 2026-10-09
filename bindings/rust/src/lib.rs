@@ -170,6 +170,7 @@ extern "C" {
     fn speechwarp_trials_mean_score(trials: *const RawTrials, setting: c_int, speed: f64, value: c_int) -> f64;
     fn speechwarp_trials_winner(trials: *const RawTrials, setting: c_int, speed: f64) -> c_int;
     fn speechwarp_trials_set_confidence(trials: *mut RawTrials, confidence: f64);
+    fn speechwarp_score_words(reference: *const c_char, heard: *const c_char, counts: *mut c_int) -> f64;
 }
 
 /// What can go wrong.
@@ -954,4 +955,61 @@ impl fmt::Debug for BlindTrials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BlindTrials").finish()
     }
+}
+
+/// How well a listener repeated a sentence back: the reference sentence and what was heard (typed, or from
+/// speech-to-text) aligned word by word. `right + missed + wrong` is the reference's word count and
+/// `right + wrong + extra` the heard one's.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WordScore {
+    /// Words right as a share of the reference's words, 0 to 1. With no words in the reference it is 1 if
+    /// nothing was heard either and 0 otherwise.
+    pub share: f64,
+    /// Reference words heard as they are.
+    pub right: usize,
+    /// Reference words not heard at all.
+    pub missed: usize,
+    /// Reference words heard as another word.
+    pub wrong: usize,
+    /// Heard words that are not in the reference.
+    pub extra: usize,
+}
+
+/// Scores `heard` (what the listener said or typed) against `reference` (the sentence played).
+///
+/// Both are split into words the same way: letters folded to lower case (ASCII and the Latin letters),
+/// punctuation dropped, an apostrophe inside a word kept (' and U+2019 alike, so "Don't" matches "don’t"), and
+/// numbers left as digits ("3" and "three" differ). The two are aligned by word-level edit distance; among the
+/// cheapest alignments the one with the most words right is taken. The rules in full are at
+/// `speechwarp_score_words` in include/speechwarp.h. The standard library has no Unicode normaliser, so give
+/// both in the same form (NFC, as most text already is). Text after a NUL character is ignored, as in C.
+///
+/// ```
+/// let score = speechwarp::score_words("The cat sat.", "the cat sat down")?;
+/// assert_eq!((score.share, score.right, score.extra), (1.0, 3, 1));
+/// # Ok::<(), speechwarp::Error>(())
+/// ```
+pub fn score_words(reference: &str, heard: &str) -> Result<WordScore, Error> {
+    fn c_text(text: &str) -> Vec<u8> {
+        let mut bytes: Vec<u8> = text.bytes().take_while(|&b| b != 0).collect();
+        bytes.push(0);
+        bytes
+    }
+    let reference = c_text(reference);
+    let heard = c_text(heard);
+    let mut counts: [c_int; 4] = [0; 4];
+    // SAFETY: both are NUL-terminated and counts has room for the four numbers.
+    let share = unsafe {
+        speechwarp_score_words(reference.as_ptr() as *const c_char, heard.as_ptr() as *const c_char, counts.as_mut_ptr())
+    };
+    if share < 0.0 {
+        return Err(Error::OutOfMemory);
+    }
+    Ok(WordScore {
+        share,
+        right: counts[0] as usize,
+        missed: counts[1] as usize,
+        wrong: counts[2] as usize,
+        extra: counts[3] as usize,
+    })
 }

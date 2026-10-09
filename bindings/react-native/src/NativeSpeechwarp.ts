@@ -99,6 +99,8 @@ export interface Spec extends TurboModule {
   trialsMeanScore(handle: number, setting: number, speed: number, value: number): number;
   trialsWinner(handle: number, setting: number, speed: number): number;
   trialsSetConfidence(handle: number, confidence: number): void;
+  // word scoring: [share, right, missed, wrong, extra]
+  scoreWords(reference: string, heard: string): Array<number>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Speechwarp');

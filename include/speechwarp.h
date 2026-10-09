@@ -391,6 +391,39 @@ SPEECHWARP_API double speechwarp_trials_mean_score(const speechwarp_trials* tria
 SPEECHWARP_API int speechwarp_trials_winner(const speechwarp_trials* trials, int setting, double speed);
 SPEECHWARP_API void speechwarp_trials_set_confidence(speechwarp_trials* trials, double confidence);
 
+/* ---- Word scoring ---------------------------------------------------------------------------------------
+ *
+ * Scoring a listener's repeat-back of a sentence (typed, or from speech-to-text) against the sentence itself,
+ * for the trainer's measures.
+ *
+ * Both strings are UTF-8 and are split into words the same way:
+ *   - word characters are ASCII letters and digits and every non-ASCII character except the punctuation
+ *     and spaces listed below, so "café", "naïve" and words in other scripts are kept whole;
+ *   - letters are folded to lower case: ASCII, Latin-1 (U+00C0-U+00DE), Latin Extended-A (U+0100-U+017F),
+ *     the regular pairs of Latin Extended-B and Latin Extended Additional (U+1E00-U+1EFF); others are kept;
+ *   - an apostrophe (' or U+2019, which is read as ') between two word characters is part of the word, so
+ *     "Don't" and "don’t" both give "don't"; anywhere else it separates words ("dogs'" gives "dogs");
+ *   - between two digits a comma is dropped ("1,000" gives "1000") and a full stop is kept ("3.5");
+ *     numbers are not spelt out, so "3" and "three" are different words;
+ *   - everything else separates words: ASCII punctuation, spaces and control characters, U+0080-U+00BF
+ *     except ª, µ and º, × and ÷ (U+00D7, U+00F7), General Punctuation (U+2000-U+206F, quotes, dashes,
+ *     ellipsis, odd spaces), U+3000-U+303F (CJK spaces and punctuation) and U+FEFF. Hyphens split words:
+ *     "well-known" gives "well" and "known".
+ * Text is not Unicode-normalised here: give both strings in the same form (NFC). The language bindings
+ * that have a normaliser built in apply NFC first.
+ *
+ * The two word sequences are aligned by a word-level edit distance (Levenshtein, each deletion, insertion
+ * and substitution costing 1). Among the alignments of least cost the one with the most words right is
+ * taken, so "a b" heard as "b a" is one right, one missed and one extra rather than two wrong. Time grows
+ * as the product of the two word counts and memory as the heard one's: meant for sentences and passages.
+ *
+ * Returns the share right: right / words in the reference, 0..1. With no words in the reference it is 1 if
+ * nothing was heard either and 0 otherwise. NULL counts as an empty string. If `counts` is not NULL it gets
+ * four numbers: words right, missed (in the reference, not heard), wrong (heard as another word) and extra
+ * (heard, not in the reference); right + missed + wrong is the reference's word count and right + wrong +
+ * extra the heard one's. Returns -1 (counts all 0) if out of memory. */
+SPEECHWARP_API double speechwarp_score_words(const char* reference, const char* heard, int* counts);
+
 #ifdef __cplusplus
 }
 #endif

@@ -83,6 +83,7 @@ const mockNative = {
   trialsMeanScore: jest.fn(() => NaN),
   trialsWinner: jest.fn(() => -1),
   trialsSetConfidence: jest.fn(),
+  scoreWords: jest.fn((_reference: string, _heard: string) => [0.5, 2, 0, 2, 1]),
 };
 jest.mock('../NativeSpeechwarp', () => ({ __esModule: true, default: mockNative }));
 
@@ -91,6 +92,7 @@ const {
   SyllableCounter,
   ListenerTrainer,
   BlindTrials,
+  scoreWords,
   TrainerMeasure,
   TrainerPlan,
   TrainerParam,
@@ -325,5 +327,12 @@ describe('BlindTrials', () => {
     trials.free();
     expect(mockNative.trialsDestroy).toHaveBeenCalledTimes(1);
     expect(() => trials.addSetting()).toThrow(/freed/);
+  });
+});
+
+describe('scoreWords', () => {
+  it('passes both strings in NFC and names the five numbers', () => {
+    expect(scoreWords('one two three four', 'cafe\u0301 too')).toEqual({ share: 0.5, right: 2, missed: 0, wrong: 2, extra: 1 });
+    expect(mockNative.scoreWords).toHaveBeenCalledWith('one two three four', 'caf\u00e9 too');
   });
 });

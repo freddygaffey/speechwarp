@@ -451,4 +451,12 @@ void SpeechwarpImpl::trialsSetConfidence(jsi::Runtime& rt, double handle, double
   speechwarp_trials_set_confidence(lookup(rt, trials_, handle, "trials"), confidence);
 }
 
+jsi::Array SpeechwarpImpl::scoreWords(jsi::Runtime& rt, jsi::String reference, jsi::String heard) {
+  int counts[4];
+  double share = speechwarp_score_words(reference.utf8(rt).c_str(), heard.utf8(rt).c_str(), counts);
+  if (share < 0) throw jsi::JSError(rt, "speechwarp: out of memory");
+  return jsi::Array::createWithElements(rt, share, static_cast<double>(counts[0]), static_cast<double>(counts[1]),
+                                       static_cast<double>(counts[2]), static_cast<double>(counts[3]));
+}
+
 }

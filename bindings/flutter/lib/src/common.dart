@@ -81,6 +81,45 @@ enum TrainerParam {
   final int value;
 }
 
+/// How well a listener repeated a sentence back, from [scoreWords]: the reference sentence and what was heard
+/// (typed, or from speech-to-text) aligned word by word. `right + missed + wrong` is the reference's word count
+/// and `right + wrong + extra` the heard one's.
+final class WordScore {
+  /// Creates a score from its parts.
+  const WordScore(this.share, this.right, this.missed, this.wrong, this.extra);
+
+  /// Words right as a share of the reference's words, 0 to 1. With no words in the reference it is 1 if nothing
+  /// was heard either and 0 otherwise.
+  final double share;
+
+  /// Reference words heard as they are.
+  final int right;
+
+  /// Reference words not heard at all.
+  final int missed;
+
+  /// Reference words heard as another word.
+  final int wrong;
+
+  /// Heard words that are not in the reference.
+  final int extra;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WordScore &&
+      other.share == share &&
+      other.right == right &&
+      other.missed == missed &&
+      other.wrong == wrong &&
+      other.extra == extra;
+
+  @override
+  int get hashCode => Object.hash(share, right, missed, wrong, extra);
+
+  @override
+  String toString() => 'WordScore(share: $share, right: $right, missed: $missed, wrong: $wrong, extra: $extra)';
+}
+
 /// Throws [ArgumentError] if [value] is NaN; otherwise returns it.
 double checkedNumber(double value, String name) {
   if (value.isNaN) throw ArgumentError.value(value, name, 'must be a number');

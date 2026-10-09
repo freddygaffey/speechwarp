@@ -14,5 +14,5 @@
 /// `maxFrames`, [SpeechwarpStream.framesAvailable] and [SpeechwarpStream.position] are in frames.
 library;
 
-export 'src/common.dart' show TrainerMeasure, TrainerParam, TrainerPlan;
+export 'src/common.dart' show TrainerMeasure, TrainerParam, TrainerPlan, WordScore;
 export 'src/ffi.dart' if (dart.library.js_interop) 'src/web.dart';

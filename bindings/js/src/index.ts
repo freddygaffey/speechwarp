@@ -103,6 +103,7 @@ interface Exports {
   speechwarp_trials_mean_score(trials: number, setting: number, speed: number, value: number): number;
   speechwarp_trials_winner(trials: number, setting: number, speed: number): number;
   speechwarp_trials_set_confidence(trials: number, confidence: number): void;
+  speechwarp_score_words(reference: number, heard: number, counts: number): number;
   speechwarp_write(stream: number, samples: number, frames: number): number;
   speechwarp_read(stream: number, samples: number, maxFrames: number): number;
   speechwarp_available(stream: number): number;
@@ -232,6 +233,70 @@ export class Speechwarp {
   createBlindTrials(seed: bigint | number = 0): BlindTrials {
     return new BlindTrials(this.exports, seed64(seed));
   }
+
+  /**
+   * Score `heard` (what the listener said or typed) against `reference` (the sentence played).
+   *
+   * Both are put in Unicode form NFC, then split into words the same way: letters folded to lower case (ASCII
+   * and the Latin letters), punctuation dropped, an apostrophe inside a word kept (' and \u2019 alike, so
+   * "Don't" matches "don\u2019t"), and numbers left as digits ("3" and "three" differ). The two are aligned by
+   * word-level edit distance; among the cheapest alignments the one with the most words right is taken. The
+   * rules in full are at speechwarp_score_words in include/speechwarp.h.
+   */
+  scoreWords(reference: string, heard: string): WordScore {
+    const referenceBytes = utf8(String(reference).normalize("NFC"));
+    const heardBytes = utf8(String(heard).normalize("NFC"));
+    const size = referenceBytes.length + heardBytes.length + 2;
+    const at = this.exports.malloc(size + 16);
+    if (at === 0) throw new Error("speechwarp: out of memory");
+    try {
+      const counts = (at + size + 3) & ~3;
+      const bytes = new Uint8Array(this.exports.memory.buffer);
+      bytes.set(referenceBytes, at);
+      bytes[at + referenceBytes.length] = 0;
+      bytes.set(heardBytes, at + referenceBytes.length + 1);
+      bytes[at + size - 1] = 0;
+      const share = this.exports.speechwarp_score_words(at, at + referenceBytes.length + 1, counts);
+      if (share < 0) throw new Error("speechwarp: out of memory");
+      const [right, missed, wrong, extra] = new Int32Array(this.exports.memory.buffer, counts, 4);
+      return { share, right, missed, wrong, extra };
+    } finally {
+      this.exports.free(at);
+    }
+  }
+}
+
+/**
+ * How well a listener repeated a sentence back, from `Speechwarp.scoreWords`. `right + missed + wrong` is the
+ * reference's word count and `right + wrong + extra` the heard one's.
+ */
+export interface WordScore {
+  /**
+   * Words right as a share of the reference's words, 0 to 1. With no words in the reference it is 1 if nothing
+   * was heard either and 0 otherwise.
+   */
+  share: number;
+  /** Reference words heard as they are. */
+  right: number;
+  /** Reference words not heard at all. */
+  missed: number;
+  /** Reference words heard as another word. */
+  wrong: number;
+  /** Heard words that are not in the reference. */
+  extra: number;
+}
+
+/** A string as UTF-8, without TextEncoder, which an AudioWorklet does not have. */
+function utf8(text: string): Uint8Array {
+  const out: number[] = [];
+  for (const character of text) {
+    const c = character.codePointAt(0)!;
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+    else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+    else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 0x3f), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+  }
+  return Uint8Array.from(out);
 }
 
 function seed64(seed: bigint | number): bigint {

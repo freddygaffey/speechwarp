@@ -414,4 +414,20 @@ final class SpeechwarpTests: XCTestCase {
         }
         XCTAssertEqual(try run(5), try run(5))
     }
+
+    func testScoreWords() throws {
+        XCTAssertEqual(try scoreWords(reference: "The cat sat on the mat.", heard: "\"the CAT, sat on the mat!\""),
+                       WordScore(share: 1, right: 6, missed: 0, wrong: 0, extra: 0))
+        XCTAssertEqual(try scoreWords(reference: "one two three four", heard: "one too tree four five"),
+                       WordScore(share: 0.5, right: 2, missed: 0, wrong: 2, extra: 1))
+        XCTAssertEqual(try scoreWords(reference: "a b", heard: "b a"),
+                       WordScore(share: 0.5, right: 1, missed: 1, wrong: 0, extra: 1))
+        XCTAssertEqual(try scoreWords(reference: "Don't stop", heard: "don\u{2019}t stop").share, 1)
+        XCTAssertEqual(try scoreWords(reference: "Café au lait", heard: "CAFÉ au lait").share, 1)
+        // Decomposed e plus acute accent matches the composed letter after normalisation.
+        XCTAssertEqual(try scoreWords(reference: "caf\u{E9}", heard: "cafe\u{301}").share, 1)
+        XCTAssertEqual(try scoreWords(reference: "", heard: ""), WordScore(share: 1, right: 0, missed: 0, wrong: 0, extra: 0))
+        XCTAssertEqual(try scoreWords(reference: "", heard: "hello").extra, 1)
+        XCTAssertEqual(try scoreWords(reference: "hello world", heard: "").missed, 2)
+    }
 }

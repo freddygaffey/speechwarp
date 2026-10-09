@@ -492,6 +492,21 @@ static PyObject* native_trials_set_confidence(PyObject* self, PyObject* args) {
   Py_RETURN_NONE;
 }
 
+/* score_words(reference, heard) -> (share, right, missed, wrong, extra); both strings as UTF-8. */
+static PyObject* native_score_words(PyObject* self, PyObject* args) {
+  const char* reference;
+  const char* heard;
+  int counts[4];
+  double share;
+  (void)self;
+  if (!PyArg_ParseTuple(args, "ss", &reference, &heard)) return NULL;
+  Py_BEGIN_ALLOW_THREADS
+  share = speechwarp_score_words(reference, heard, counts);
+  Py_END_ALLOW_THREADS
+  if (share < 0) return PyErr_NoMemory();
+  return Py_BuildValue("(diiii)", share, counts[0], counts[1], counts[2], counts[3]);
+}
+
 static PyObject* native_syllable_rate(PyObject* self, PyObject* capsule) {
   speechwarp_stream* stream = stream_of(capsule);
   (void)self;
@@ -652,6 +667,7 @@ static PyMethodDef methods[] = {
     {"trials_mean_score", native_trials_mean_score, METH_VARARGS, NULL},
     {"trials_winner", native_trials_winner, METH_VARARGS, NULL},
     {"trials_set_confidence", native_trials_set_confidence, METH_VARARGS, NULL},
+    {"score_words", native_score_words, METH_VARARGS, NULL},
     {"version", native_version, METH_NOARGS, NULL},
     {NULL, NULL, 0, NULL},
 };

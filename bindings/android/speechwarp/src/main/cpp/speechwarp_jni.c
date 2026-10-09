@@ -1,5 +1,5 @@
 /* The JNI layer: the native methods of io.github.fredgaffey.speechwarp.SpeechwarpStream, SyllableCounter,
- * ListenerTrainer and BlindTrials. The Android (Kotlin) and desktop (Java) libraries share this file, so the
+ * ListenerTrainer, BlindTrials and WordScore. The Android (Kotlin) and desktop (Java) libraries share this file, so the
  * native method names and signatures of both must stay the same.
  *
  * Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
@@ -8,6 +8,8 @@
  * An object travels as a jlong holding the pointer.
  */
 #include <jni.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "speechwarp.h"
 
@@ -492,4 +494,38 @@ TRIALS(void, nativeSetConfidence)(JNIEnv* env, jclass type, jlong handle, jdoubl
   (void)env;
   (void)type;
   speechwarp_trials_set_confidence(trials_of(handle), confidence);
+}
+
+/* ---- WordScore ---- */
+
+/* A Java byte array of UTF-8 as a NUL-terminated string, or NULL if out of memory. Free with free(). */
+static char* utf8_of(JNIEnv* env, jbyteArray bytes) {
+  jsize length = (*env)->GetArrayLength(env, bytes);
+  char* text = (char*)malloc((size_t)length + 1);
+  if (!text) return NULL;
+  (*env)->GetByteArrayRegion(env, bytes, 0, length, (jbyte*)text);
+  text[length] = '\0';
+  return text;
+}
+
+/* The strings come as standard UTF-8 bytes rather than jstrings, because JNI's own UTF-8 is modified: it writes
+ * characters outside the Basic Multilingual Plane as two surrogates. Fills counts (4 ints) and returns the
+ * share, or -1 if out of memory. */
+JNIEXPORT jdouble JNICALL Java_io_github_fredgaffey_speechwarp_WordScore_nativeScore(JNIEnv* env, jclass type,
+                                                                                    jbyteArray reference,
+                                                                                    jbyteArray heard,
+                                                                                    jintArray counts) {
+  char* reference_text = utf8_of(env, reference);
+  char* heard_text = utf8_of(env, heard);
+  int values[4] = {0, 0, 0, 0};
+  jint result[4];
+  double share = -1;
+  int k;
+  (void)type;
+  if (reference_text && heard_text) share = speechwarp_score_words(reference_text, heard_text, values);
+  free(reference_text);
+  free(heard_text);
+  for (k = 0; k < 4; k++) result[k] = values[k];
+  (*env)->SetIntArrayRegion(env, counts, 0, 4, result);
+  return share;
 }

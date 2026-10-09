@@ -456,6 +456,8 @@ final _trialsWinner =
 final _trialsSetConfidence =
     _library.lookupFunction<Void Function(Pointer<Void>, Double), void Function(Pointer<Void>, double)>(
         'speechwarp_trials_set_confidence');
+final _scoreWords = _library.lookupFunction<Double Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Int32>),
+    double Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Int32>)>('speechwarp_score_words');
 
 final _syllablesFinalizer = NativeFinalizer(_syllablesDestroyPointer.cast());
 final _trainerFinalizer = NativeFinalizer(_trainerDestroyPointer.cast());
@@ -742,5 +744,30 @@ class BlindTrials implements Finalizable {
   Pointer<Void> _open() {
     if (_trials == nullptr) throw StateError('the trials are closed');
     return _trials;
+  }
+}
+
+/// Scores [heard] (what the listener said or typed) against [reference] (the sentence played).
+///
+/// Both are split into words the same way: letters folded to lower case (ASCII and the Latin letters),
+/// punctuation dropped, an apostrophe inside a word kept (' and U+2019 alike, so "Don't" matches "don’t"), and
+/// numbers left as digits ("3" and "three" differ). The two are aligned by word-level edit distance; among the
+/// cheapest alignments the one with the most words right is taken. The rules in full are at
+/// speechwarp_score_words in include/speechwarp.h. Dart has no Unicode normaliser built in, so give both in the
+/// same form (NFC, as most text already is): a decomposed "e" plus accent does not match "é".
+///
+/// Throws [OutOfMemoryError] if the library could not allocate its working space.
+WordScore scoreWords(String reference, String heard) {
+  final referenceText = reference.toNativeUtf8(allocator: calloc);
+  final heardText = heard.toNativeUtf8(allocator: calloc);
+  final counts = calloc<Int32>(4);
+  try {
+    final share = _scoreWords(referenceText, heardText, counts);
+    if (share < 0) throw const OutOfMemoryError();
+    return WordScore(share, counts[0], counts[1], counts[2], counts[3]);
+  } finally {
+    calloc.free(referenceText);
+    calloc.free(heardText);
+    calloc.free(counts);
   }
 }

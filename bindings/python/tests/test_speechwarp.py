@@ -299,3 +299,17 @@ def test_blind_trials_name_a_winner():
     for _ in range(12):
         trials.add(setting, 6, 1.0, 2.0, 0.5, 0.9, 1)
     assert trials.winner(setting, 6) == 1
+
+
+def test_score_words():
+    assert speechwarp.score_words("The cat sat on the mat.", '"the CAT, sat on the mat!"') == (1.0, 6, 0, 0, 0)
+    score = speechwarp.score_words("one two three four", "one too tree four five")
+    assert score == speechwarp.WordScore(0.5, 2, 0, 2, 1)
+    assert (score.right, score.missed, score.wrong, score.extra) == (2, 0, 2, 1)
+    assert speechwarp.score_words("a b", "b a") == (0.5, 1, 1, 0, 1)
+    assert speechwarp.score_words("Don't stop", "don\u2019t stop").share == 1
+    assert speechwarp.score_words("Caf\u00e9 au lait", "CAF\u00c9 au lait").share == 1
+    assert speechwarp.score_words("caf\u00e9", "cafe\u0301").share == 1  # normalised to NFC first
+    assert speechwarp.score_words("", "") == (1.0, 0, 0, 0, 0)
+    assert speechwarp.score_words("", "hello") == (0.0, 0, 0, 0, 1)
+    assert speechwarp.score_words("hello world", "") == (0.0, 0, 2, 0, 0)

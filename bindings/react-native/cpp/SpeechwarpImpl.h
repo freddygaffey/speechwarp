@@ -102,6 +102,8 @@ public:
   double trialsWinner(jsi::Runtime& rt, double handle, double setting, double speed);
   void trialsSetConfidence(jsi::Runtime& rt, double handle, double confidence);
 
+  jsi::Array scoreWords(jsi::Runtime& rt, jsi::String reference, jsi::String heard);
+
 private:
   struct Entry {
     speechwarp_stream* stream;

@@ -15,8 +15,10 @@ or, for audio that arrives in pieces:
 Audio is a NumPy array of float32 in the range -1 to 1, or of int16. Mono is one-dimensional; with more
 channels the shape is (frames, channels).
 """
+import collections
 import enum
 import math
+import unicodedata
 
 import numpy as np
 
@@ -24,7 +26,7 @@ from . import _native
 
 __version__ = _native.version()
 __all__ = ["Stream", "speed_up", "SyllableCounter", "ListenerTrainer", "BlindTrials", "TrainerMeasure",
-           "TrainerPlan", "TrainerParam", "MIN_SPEED", "MAX_SPEED", "__version__"]
+           "TrainerPlan", "TrainerParam", "WordScore", "score_words", "MIN_SPEED", "MAX_SPEED", "__version__"]
 
 MIN_SPEED = _native.MIN_SPEED
 MAX_SPEED = _native.MAX_SPEED
@@ -591,6 +593,27 @@ class BlindTrials:
         """Confidence for `winner`, default 0.95."""
         _native.trials_set_confidence(self._trials, float(confidence))
 
+
+
+WordScore = collections.namedtuple("WordScore", ["share", "right", "missed", "wrong", "extra"])
+WordScore.__doc__ = """How well a sentence was repeated back. `share` is right / words in the reference (0..1; with no
+reference words, 1 if nothing was heard either, else 0). `right` + `missed` + `wrong` is the reference's word
+count and `right` + `wrong` + `extra` the heard one's."""
+
+
+def score_words(reference, heard):
+    """Score `heard` (what the listener said or typed) against `reference` (the sentence played). Returns a
+    WordScore.
+
+    Both are put in Unicode form NFC, then split into words the same way: letters folded to lower case (ASCII
+    and the Latin letters), punctuation dropped, an apostrophe inside a word kept (' and \u2019 alike, so
+    "Don't" matches "don\u2019t"), numbers left as digits ("3" and "three" differ). The two are aligned by
+    word-level edit distance; among the cheapest alignments the one with the most words right is taken. The
+    rules in full are at speechwarp_score_words in include/speechwarp.h.
+    """
+    result = _native.score_words(unicodedata.normalize("NFC", str(reference)),
+                                 unicodedata.normalize("NFC", str(heard)))
+    return WordScore(*result)
 
 def speed_up(samples, sample_rate, speed, nonlinear=1.0, **options):
     """Speed up a whole recording. Returns an array of the same type (float32 unless given int16).

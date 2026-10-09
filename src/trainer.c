@@ -1,4 +1,4 @@
-/* speechwarp - listener trainer and blind trials.
+/* speechwarp - listener trainer, blind trials and word scoring.
  *
  * Licensed under the Apache License, Version 2.0. See LICENSE and NOTICE.
  *
@@ -11,7 +11,8 @@
  *   a. the threshold test: the psi method over a grid of thresholds and slopes;
  *   b. session plans: steady, ramp, interval and tracking;
  *   c. comparing plans: Thompson sampling over a Bayesian linear model of threshold gain per hour;
- *   d. blind trials: which setting and values to compare next, and when one value reliably wins.
+ *   d. blind trials: which setting and values to compare next, and when one value reliably wins;
+ *   e. word scoring: a listener's repeat-back of a sentence aligned with the sentence, word by word.
  */
 #include <math.h>
 #include <stdlib.h>
@@ -1228,4 +1229,243 @@ int speechwarp_trials_winner(const speechwarp_trials* trials, int setting_number
 
 void speechwarp_trials_set_confidence(speechwarp_trials* trials, double confidence) {
   if (trials && confidence >= 0.5 && confidence < 1) trials->confidence = confidence;
+}
+
+/* ---- e. Word scoring ------------------------------------------------------------------------------------ */
+
+enum { CHAR_SEPARATOR, CHAR_WORD, CHAR_APOSTROPHE };
+
+/* Decodes one UTF-8 character at s[*i] (n bytes in all) and moves *i past it. A malformed byte comes back as
+ * -1 with a length of 1 and is then copied as it is, as word content. */
+static long next_char(const unsigned char* s, size_t n, size_t* i) {
+  unsigned char b = s[*i];
+  long c;
+  int length, k;
+  if (b < 0x80) {
+    (*i)++;
+    return b;
+  }
+  if (b >= 0xC2 && b <= 0xDF) {
+    length = 2;
+    c = b & 0x1F;
+  } else if (b >= 0xE0 && b <= 0xEF) {
+    length = 3;
+    c = b & 0x0F;
+  } else if (b >= 0xF0 && b <= 0xF4) {
+    length = 4;
+    c = b & 0x07;
+  } else {
+    (*i)++;
+    return -1;
+  }
+  if (*i + (size_t)length > n) {
+    (*i)++;
+    return -1;
+  }
+  for (k = 1; k < length; k++) {
+    unsigned char t = s[*i + (size_t)k];
+    if ((t & 0xC0) != 0x80) {
+      (*i)++;
+      return -1;
+    }
+    c = (c << 6) | (t & 0x3F);
+  }
+  /* Overlong forms, surrogates and code points past U+10FFFF are malformed too. */
+  if ((length == 3 && c < 0x800) || (length == 4 && (c < 0x10000 || c > 0x10FFFF)) ||
+      (c >= 0xD800 && c <= 0xDFFF)) {
+    (*i)++;
+    return -1;
+  }
+  *i += (size_t)length;
+  return c;
+}
+
+static int char_kind(long c) {
+  if (c < 0) return CHAR_WORD;
+  if (c < 0x80) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) return CHAR_WORD;
+    return c == '\'' ? CHAR_APOSTROPHE : CHAR_SEPARATOR;
+  }
+  if (c == 0x2019) return CHAR_APOSTROPHE;
+  if (c <= 0xBF) return c == 0xAA || c == 0xB5 || c == 0xBA ? CHAR_WORD : CHAR_SEPARATOR;
+  if (c == 0xD7 || c == 0xF7 || (c >= 0x2000 && c <= 0x206F) || (c >= 0x3000 && c <= 0x303F) || c == 0xFEFF) {
+    return CHAR_SEPARATOR;
+  }
+  return CHAR_WORD;
+}
+
+/* Lower case for the Latin letters; anything else is returned as it is. */
+static long fold_case(long c) {
+  if (c >= 'A' && c <= 'Z') return c + 32;
+  if (c < 0xC0) return c;
+  if (c <= 0xDE) return c == 0xD7 ? c : c + 32;
+  if (c < 0x100) return c;
+  if (c == 0x130) return 'i'; /* capital I with dot above */
+  if (c <= 0x137) return c % 2 ? c : c + 1;
+  if (c >= 0x139 && c <= 0x148) return c % 2 ? c + 1 : c;
+  if (c >= 0x14A && c <= 0x177) return c % 2 ? c : c + 1;
+  if (c == 0x178) return 0xFF;
+  if (c >= 0x179 && c <= 0x17E) return c % 2 ? c + 1 : c;
+  if (c == 0x1C4 || c == 0x1C5) return 0x1C6; /* DŽ, Dž */
+  if (c == 0x1C7 || c == 0x1C8) return 0x1C9; /* LJ, Lj */
+  if (c == 0x1CA || c == 0x1CB) return 0x1CC; /* NJ, Nj */
+  if (c >= 0x1CD && c <= 0x1DC) return c % 2 ? c + 1 : c;
+  if (c >= 0x1DE && c <= 0x1EF) return c % 2 ? c : c + 1;
+  if (c == 0x1F1 || c == 0x1F2) return 0x1F3; /* DZ, Dz */
+  if (c == 0x1F4) return 0x1F5;
+  if (c >= 0x1F8 && c <= 0x21F) return c % 2 ? c : c + 1;
+  if (c >= 0x222 && c <= 0x233) return c % 2 ? c : c + 1;
+  if (c >= 0x1E00 && c <= 0x1E95) return c % 2 ? c : c + 1;
+  if (c == 0x1E9E) return 0xDF; /* capital sharp s */
+  if (c >= 0x1EA0 && c <= 0x1EFF) return c % 2 ? c : c + 1;
+  return c;
+}
+
+static char* put_char(char* out, long c) {
+  if (c < 0x80) {
+    *out++ = (char)c;
+  } else if (c < 0x800) {
+    *out++ = (char)(0xC0 | (c >> 6));
+    *out++ = (char)(0x80 | (c & 0x3F));
+  } else if (c < 0x10000) {
+    *out++ = (char)(0xE0 | (c >> 12));
+    *out++ = (char)(0x80 | ((c >> 6) & 0x3F));
+    *out++ = (char)(0x80 | (c & 0x3F));
+  } else {
+    *out++ = (char)(0xF0 | (c >> 18));
+    *out++ = (char)(0x80 | ((c >> 12) & 0x3F));
+    *out++ = (char)(0x80 | ((c >> 6) & 0x3F));
+    *out++ = (char)(0x80 | (c & 0x3F));
+  }
+  return out;
+}
+
+/* A text split into normalised words: each one ends with a NUL in `text`, and starts[k] is where word k
+ * begins. Folding never lengthens a character, so the words fit in as many bytes as the text plus one. */
+typedef struct {
+  char* text;
+  size_t* starts;
+  int count;
+} word_list;
+
+static int split_words(const char* source, word_list* words) {
+  const unsigned char* s = (const unsigned char*)(source ? source : "");
+  size_t n = strlen((const char*)s), i = 0;
+  char* out;
+  int in_word = 0, last_digit = 0;
+  words->count = 0;
+  words->text = (char*)malloc(n + 1);
+  words->starts = (size_t*)malloc((n / 2 + 1) * sizeof(size_t));
+  if (!words->text || !words->starts) return 0;
+  out = words->text;
+  while (i < n) {
+    size_t at = i;
+    long c = next_char(s, n, &i);
+    int kind = char_kind(c);
+    if (kind == CHAR_WORD) {
+      if (!in_word) words->starts[words->count++] = (size_t)(out - words->text);
+      if (c < 0) {
+        *out++ = (char)s[at];
+      } else {
+        out = put_char(out, fold_case(c));
+      }
+      in_word = 1;
+      last_digit = c >= '0' && c <= '9';
+      continue;
+    }
+    if (in_word) {
+      /* Kept inside a word: an apostrophe before a word character, a comma or full stop before a digit
+       * when a digit came before it. */
+      size_t ahead = i;
+      long next = i < n ? next_char(s, n, &ahead) : ' ';
+      if (kind == CHAR_APOSTROPHE && char_kind(next) == CHAR_WORD) {
+        *out++ = '\'';
+        last_digit = 0;
+        continue;
+      }
+      if ((c == ',' || c == '.') && last_digit && next >= '0' && next <= '9') {
+        if (c == '.') *out++ = '.';
+        continue;
+      }
+      *out++ = '\0';
+      in_word = 0;
+    }
+  }
+  if (in_word) *out = '\0';
+  return 1;
+}
+
+typedef struct {
+  int edits;
+  int right;
+} alignment;
+
+/* Fewer edits first, then more words right. */
+static int better(alignment a, alignment b) { return a.edits < b.edits || (a.edits == b.edits && a.right > b.right); }
+
+double speechwarp_score_words(const char* reference, const char* heard, int* counts) {
+  word_list ref = {NULL, NULL, 0}, said = {NULL, NULL, 0};
+  alignment* previous = NULL;
+  alignment* current = NULL;
+  alignment best;
+  int n, m, i, j, missed, wrong, extra;
+  double share = -1;
+  if (counts) counts[0] = counts[1] = counts[2] = counts[3] = 0;
+  if (!split_words(reference, &ref) || !split_words(heard, &said)) goto done;
+  n = ref.count;
+  m = said.count;
+  previous = (alignment*)malloc((size_t)(m + 1) * sizeof(alignment));
+  current = (alignment*)malloc((size_t)(m + 1) * sizeof(alignment));
+  if (!previous || !current) goto done;
+
+  /* Row i holds the best alignment of the first i reference words with the first j heard words. */
+  for (j = 0; j <= m; j++) {
+    previous[j].edits = j;
+    previous[j].right = 0;
+  }
+  for (i = 1; i <= n; i++) {
+    const char* word = ref.text + ref.starts[i - 1];
+    alignment* swap;
+    current[0].edits = i;
+    current[0].right = 0;
+    for (j = 1; j <= m; j++) {
+      alignment diagonal = previous[j - 1], up = previous[j], left = current[j - 1];
+      if (strcmp(word, said.text + said.starts[j - 1]) == 0) {
+        diagonal.right++;
+      } else {
+        diagonal.edits++;
+      }
+      up.edits++;
+      left.edits++;
+      best = diagonal;
+      if (better(up, best)) best = up;
+      if (better(left, best)) best = left;
+      current[j] = best;
+    }
+    swap = previous;
+    previous = current;
+    current = swap;
+  }
+  best = previous[m];
+
+  /* From edits = missed + wrong + extra, n = right + missed + wrong and m = right + wrong + extra. */
+  extra = best.edits - (n - best.right);
+  missed = best.edits - (m - best.right);
+  wrong = n - best.right - missed;
+  if (counts) {
+    counts[0] = best.right;
+    counts[1] = missed;
+    counts[2] = wrong;
+    counts[3] = extra;
+  }
+  share = n > 0 ? (double)best.right / n : (m == 0 ? 1 : 0);
+
+done:
+  free(previous);
+  free(current);
+  free(ref.text);
+  free(ref.starts);
+  free(said.text);
+  free(said.starts);
+  return share;
 }

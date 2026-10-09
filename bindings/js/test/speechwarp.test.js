@@ -359,3 +359,22 @@ test("blind trials choose pairs and add up results", () => {
   trials.free();
   assert.throws(() => trials.addSetting(), /freed/);
 });
+
+test("scoreWords aligns the words heard with the sentence", () => {
+  assert.deepEqual(speechwarp.scoreWords("The cat sat on the mat.", '"the CAT, sat on the mat!"'), {
+    share: 1, right: 6, missed: 0, wrong: 0, extra: 0,
+  });
+  assert.deepEqual(speechwarp.scoreWords("one two three four", "one too tree four five"), {
+    share: 0.5, right: 2, missed: 0, wrong: 2, extra: 1,
+  });
+  assert.deepEqual(speechwarp.scoreWords("a b", "b a"), { share: 0.5, right: 1, missed: 1, wrong: 0, extra: 1 });
+  assert.equal(speechwarp.scoreWords("Don't stop", "don\u2019t stop").share, 1);
+  assert.equal(speechwarp.scoreWords("Caf\u00e9 au lait", "CAF\u00c9 au lait").share, 1);
+  assert.equal(speechwarp.scoreWords("caf\u00e9", "cafe\u0301").share, 1); // normalised to NFC first
+  assert.deepEqual(speechwarp.scoreWords("hi \u{1F600}x", "HI \u{1F600}x"), {
+    share: 1, right: 2, missed: 0, wrong: 0, extra: 0,
+  });
+  assert.deepEqual(speechwarp.scoreWords("", ""), { share: 1, right: 0, missed: 0, wrong: 0, extra: 0 });
+  assert.deepEqual(speechwarp.scoreWords("", "hello"), { share: 0, right: 0, missed: 0, wrong: 0, extra: 1 });
+  assert.deepEqual(speechwarp.scoreWords("hello world", ""), { share: 0, right: 0, missed: 2, wrong: 0, extra: 0 });
+});

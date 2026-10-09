@@ -348,4 +348,16 @@ void main() {
     trials.close();
     expect(() => trials.addSetting(), throwsStateError);
   });
+
+  test('scoreWords aligns the words heard with the sentence', () {
+    expect(scoreWords('The cat sat on the mat.', '"the CAT, sat on the mat!"'), const WordScore(1, 6, 0, 0, 0));
+    expect(scoreWords('one two three four', 'one too tree four five'), const WordScore(0.5, 2, 0, 2, 1));
+    expect(scoreWords('a b', 'b a'), const WordScore(0.5, 1, 1, 0, 1));
+    expect(scoreWords("Don't stop", 'don\u2019t stop').share, 1);
+    expect(scoreWords('Caf\u00e9 au lait', 'CAF\u00c9 au lait').share, 1);
+    expect(scoreWords('hi \u{1F600}x', 'HI \u{1F600}x'), const WordScore(1, 2, 0, 0, 0));
+    expect(scoreWords('', ''), const WordScore(1, 0, 0, 0, 0));
+    expect(scoreWords('', 'hello'), const WordScore(0, 0, 0, 0, 1));
+    expect(scoreWords('hello world', ''), const WordScore(0, 0, 2, 0, 0));
+  });
 }
