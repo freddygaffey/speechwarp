@@ -25,11 +25,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pypa/cibuildwheel@v3.2.0
         env:
           CIBW_ARCHS_MACOS: x86_64 arm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
@@ -37,8 +37,8 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Build
@@ -47,7 +47,7 @@ jobs:
         run: |
           pip install "$(ls dist/*.tar.gz)[test]"
           cd "$RUNNER_TEMP" && pytest "$GITHUB_WORKSPACE/bindings/python/tests"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -61,7 +61,7 @@ jobs:
     permissions:
       id-token: write # lets PyPI check that the upload comes from this workflow
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

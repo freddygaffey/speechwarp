@@ -29,13 +29,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cargo test
 
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: cargo package --list
       # Unpacks the crate and builds it on its own, so a C source or licence missing from the package fails here
       # and not on a stranger's machine.
@@ -52,7 +52,7 @@ jobs:
     env:
       HAVE_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }} # true or false only, never the token
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check the tag matches the version being published
         run: |
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')

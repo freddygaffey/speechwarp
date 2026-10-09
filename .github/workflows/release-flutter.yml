@@ -27,7 +27,7 @@ jobs:
       run:
         working-directory: bindings/flutter
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -51,11 +51,21 @@ jobs:
     # accept it with no warnings.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - uses: mymindstorm/setup-emsdk@v14
+      # Emscripten, for the WebAssembly build. Installed directly: the setup-emsdk action still runs on
+      # Node.js 20, which GitHub is retiring.
+      - name: Install Emscripten
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install latest
+          "$RUNNER_TEMP/emsdk/emsdk" activate latest
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/emsdk" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/emsdk/upstream/emscripten" >> "$GITHUB_PATH"
       # Also builds lib/src/wasm_bytes.dart, the library as WebAssembly, which the web support needs.
       - name: Copy the C sources into the package, and build the WebAssembly
         run: sh bindings/flutter/scripts/vendor.sh
@@ -98,7 +108,7 @@ jobs:
     permissions:
       id-token: write # lets pub.dev check that the upload comes from this workflow
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Signs in to pub.dev with the OIDC token for the steps after it; no password or key is stored.
       - uses: dart-lang/setup-dart@v1
       - uses: subosito/flutter-action@v2
@@ -109,7 +119,17 @@ jobs:
         run: |
           test "v$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' pubspec.yaml)" = "$GITHUB_REF_NAME" ||
             { echo "Tag $GITHUB_REF_NAME does not match the version in bindings/flutter/pubspec.yaml"; exit 1; }
-      - uses: mymindstorm/setup-emsdk@v14
+      # Emscripten, for the WebAssembly build. Installed directly: the setup-emsdk action still runs on
+      # Node.js 20, which GitHub is retiring.
+      - name: Install Emscripten
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install latest
+          "$RUNNER_TEMP/emsdk/emsdk" activate latest
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/emsdk" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/emsdk/upstream/emscripten" >> "$GITHUB_PATH"
       - name: Copy the C sources into the package, and build the WebAssembly
         run: sh bindings/flutter/scripts/vendor.sh
       - run: git update-index --assume-unchanged bindings/flutter/lib/src/wasm_bytes.dart

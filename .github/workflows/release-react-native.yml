@@ -28,8 +28,8 @@ jobs:
       run:
         working-directory: bindings/react-native
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: corepack enable
@@ -52,7 +52,7 @@ jobs:
           done
           ! grep -E 'node_modules|/example/|__tests__|/\.' contents.txt ||
             { echo "Files that do not belong in the package"; exit 1; }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: npm-package
           path: bindings/react-native/react-native-speechwarp-*.tgz
@@ -66,12 +66,12 @@ jobs:
     permissions:
       id-token: write # lets npm check that the upload comes from this workflow
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest # trusted publishing needs npm 11.5.1 or later
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: npm-package
       - name: Check the tag matches the version being published

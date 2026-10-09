@@ -36,7 +36,7 @@ jobs:
           - { rid: win-x64, os: windows-latest, platform: x64 }
           - { rid: win-arm64, os: windows-latest, platform: ARM64 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         if: runner.os != 'Windows'
         # ANDROID_NDK_LATEST_HOME is set on GitHub's Linux runners.
@@ -50,7 +50,7 @@ jobs:
           mkdir -p bindings/dotnet/Speechwarp/runtimes/${{ matrix.rid }}/native
           # Renamed: speechwarp.dll would be the same file as the managed Speechwarp.dll (see Native.cs).
           cp build/Release/speechwarp.dll bindings/dotnet/Speechwarp/runtimes/${{ matrix.rid }}/native/libspeechwarp.dll
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.rid }}
           path: bindings/dotnet/Speechwarp/runtimes
@@ -60,10 +60,10 @@ jobs:
     name: native ios
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: bindings/dotnet/build-ios.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ios-framework
           path: bindings/dotnet/Speechwarp/native
@@ -78,11 +78,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: native-*
           merge-multiple: true
@@ -95,22 +95,22 @@ jobs:
     needs: [test, ios]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: native-*
           merge-multiple: true
           path: bindings/dotnet/Speechwarp/runtimes
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: ios-framework
           path: bindings/dotnet/Speechwarp/native
       - name: Pack
         run: dotnet pack bindings/dotnet/Speechwarp -c Release -o package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nuget-package
           path: package/*.nupkg
@@ -124,10 +124,10 @@ jobs:
     permissions:
       id-token: write # lets nuget.org check that the upload comes from this workflow
     steps:
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: nuget-package
       - name: Check the tag matches the version being published

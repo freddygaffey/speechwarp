@@ -54,12 +54,20 @@ in each of `bindings/flutter/ios/Classes` and `macos/Classes`, and `bindings/rea
 
 **Examples must run.** `examples/c/player.c` is a test. Run the others before changing them.
 
-## Versions
+## Versions and releases
 
-The version is `SPEECHWARP_VERSION` in `include/speechwarp.h`. CMake, Python and Gradle read it from there.
-These repeat it, and each has a test that fails when it disagrees: `bindings/dotnet/Speechwarp/Speechwarp.csproj`,
-`bindings/js/package.json`, `Cargo.toml` and `bindings/flutter/pubspec.yaml`. `bindings/react-native/package.json`
-and the two Flutter podspecs repeat it with no test. Update the three numeric macros in the header as well, and `CHANGELOG.md`.
+The version is `SPEECHWARP_VERSION` in `include/speechwarp.h`. CMake, Python and Gradle read it from there;
+the other packages, the README's install lines and some doc comments repeat it. Do not edit them by hand:
+
+```sh
+tools/bump-version.sh 0.3.7      # every copy, the header's numeric macros, and a heading in both changelogs
+```
+
+Then write the changelog entries (the Flutter one is shown on pub.dev), run the tests, commit, and push
+`main`. Pushing a tag `v0.3.7` on that commit publishes every package from GitHub Actions: PyPI, npm (the
+JavaScript and React Native packages), NuGet, crates.io, pub.dev and Maven Central, with Go and Swift taking the
+tag itself. Each release workflow first checks that the tag matches the version it is about to publish, and
+refuses if not. A tag is never moved or reused, because the Go module proxy remembers every version it has seen.
 
 ## Licences
 
