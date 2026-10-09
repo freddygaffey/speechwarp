@@ -147,6 +147,11 @@ final class AppleTranscriberTests: XCTestCase {
 
     /// A prepared transcriber, or a skip saying why recognition cannot run here.
     private func prepared(_ recogniser: AppleTranscriber.Recogniser) async throws -> AppleTranscriber {
+        // A hosted CI machine cannot grant speech-recognition permission or download Apple's speech models, and
+        // there recognition waits for ever instead of failing. These tests run on a Mac where it is available.
+        if ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil {
+            throw XCTSkip("Speech recognition does not run on hosted CI machines")
+        }
         let transcriber = try AppleTranscriber(model: AppleTranscriber.model(language: "en-US"), recogniser: recogniser)
         do {
             try await transcriber.prepare(progress: nil)
